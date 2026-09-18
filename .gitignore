@@ -1,0 +1,31 @@
+# --- 凭证（每台机器 /login 一次，绝不入库）---
+auth.json
+
+# --- 本机批准记录（安全：同步等于把旧机器的批准自动带给新机器）---
+trust.json
+
+# --- 会话 / 运行时状态（体积大、持续变动、可再生）---
+sessions/
+run-history.jsonl
+*.log
+*.bak
+.DS_Store
+
+# --- 缓存与上游托管目录（pi install / pi update 自动重建）---
+models-store.json
+npm/
+git/
+
+# --- 机器产出物（missions 目录名是本机路径哈希，换机只会产生重复垃圾）---
+missions/
+
+# --- powerline stash 历史（运行时）---
+# 注意前导斜杠：只排顶层，别把 extensions/powerline-footer/theme.json 一起排掉
+/powerline-footer/
+
+# --- 第三方工具托管的文件：由该工具自己在每台机器安装，不由本仓库分发 ---
+# herdr 安装/更新集成时会覆盖此文件（文件头亦如此声明）
+extensions/herdr-agent-state.ts
+# Omarchy 安装器建的符号链接，指向 /usr/share/omarchy/... ，入库会在非 Omarchy 机器上悬空
+skills/diagnose-crash
+skills/omarchy

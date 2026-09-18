@@ -1,0 +1,40 @@
+{
+  "theme": "omarchy-system",
+  "lastChangelogVersion": "0.85.1",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-6-astra",
+  "defaultThinkingLevel": "medium",
+  "showCacheMissNotices": true,
+  "skills": [],
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-powerline-footer",
+    "npm:pi-codex-fast-mode",
+    "npm:pi-subagents",
+    {
+      "source": "git:github.com/mattpocock/skills",
+      "skills": [
+        "skills/engineering/**",
+        "skills/productivity/**"
+      ]
+    },
+    "npm:pi-token-speed"
+  ],
+  "powerline": {
+    "preset": "default",
+    "layout": {
+      "left": ["model", "custom:think", "path"],
+      "right": ["custom:stats", "custom:tps", "cost"],
+      "secondary": []
+    },
+    "customItems": [
+      { "id": "tps", "statusKey": "tokenSpeed", "position": "right", "selfColorize": true },
+      { "id": "stats", "statusKey": "barStats", "position": "right", "selfColorize": true },
+      { "id": "think", "statusKey": "thinkLevel", "position": "left", "selfColorize": true }
+    ],
+    "model": { "display": "qualified" },
+    "context": { "format": "percent" },
+    "cache_read": { "format": "percent" }
+  },
+  "tokenSpeed": { "icon": "" }
+}
