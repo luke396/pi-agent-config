@@ -71,9 +71,10 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   git that nobody reviews. `state/` is ignored now.
 - A `.gitignore` pattern without a leading slash matches at **any depth**, so
   `dir/` silently swallowed a nested `extensions/dir/theme.json`.
-- Omarchy installs its skills as **symlinked directories**; staged as content
-  they would enter history as mode `120000` — a dangling pointer on the next
-  machine.
+- Omarchy and `lark-cli install` both install their skills as **symlinked
+  directories**; staged as content they would enter history as mode `120000` —
+  a dangling pointer on the next machine. Treat any `skills/` entry nobody here
+  wrote as installer-owned.
 - pi creates a 2-byte `auth.json` on startup, so finding one in a fresh clone
   says nothing about whether credentials leaked. Check what is tracked instead.
 - Regenerated files look like config (`themes/omarchy-system.json`) and local

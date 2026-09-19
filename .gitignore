@@ -55,3 +55,10 @@ extensions/herdr-agent-state.ts
 # machines that do not have Omarchy.
 skills/diagnose-crash
 skills/omarchy
+# `lark-cli install` fetches these from open.feishu.cn, digest-locks them in
+# ~/.agents/.skill-lock.json and symlinks them in from ~/.agents/skills/. That
+# lockfile lives outside this repo, so a tracked copy here would be a second,
+# silently diverging version of a remote-owned skill — and a dangling symlink
+# (mode 120000) on machines that never ran the installer. Root-anchored: they
+# are top-level skills, and nothing nested is ours.
+/skills/lark-*
