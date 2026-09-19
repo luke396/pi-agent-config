@@ -23,6 +23,10 @@ missions/
 # 注意前导斜杠：只排顶层，别把 extensions/powerline-footer/theme.json 一起排掉
 /powerline-footer/
 
+# --- Omarchy 自动生成的主题（从 $OMARCHY_PATH/default/themed/pi.json.tpl 渲染）---
+# 每台 Omarchy 机器换主题时自行重建；settings.json 里的 theme 键指向它，缺失时 pi 静默回落默认主题
+/themes/omarchy-system.json
+
 # --- 第三方工具托管的文件：由该工具自己在每台机器安装，不由本仓库分发 ---
 # herdr 安装/更新集成时会覆盖此文件（文件头亦如此声明）
 extensions/herdr-agent-state.ts
