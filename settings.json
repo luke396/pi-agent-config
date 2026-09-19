@@ -17,14 +17,10 @@
         "skills/productivity/**"
       ]
     },
-    "npm:pi-token-speed",
     {
       "source": "npm:pi-tokyo-night",
       "extensions": []
     },
     "npm:pi-open-tui"
-  ],
-  "tokenSpeed": {
-    "icon": ""
-  }
+  ]
 }
