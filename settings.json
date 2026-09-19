@@ -21,6 +21,7 @@
     {
       "source": "npm:pi-catppuccin-tui",
       "extensions": []
-    }
+    },
+    "npm:pi-vim"
   ]
 }
