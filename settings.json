@@ -8,7 +8,6 @@
   "skills": [],
   "packages": [
     "npm:pi-web-access",
-    "npm:pi-codex-fast-mode",
     "npm:pi-subagents",
     {
       "source": "git:github.com/mattpocock/skills",
