@@ -1,6 +1,6 @@
 ---
 name: agent-history
-description: Retrieve past Codex/pi conversations with agent-history. Use when asked to recall a previous solution or decision, find discussions on another device, or recover historical context missing from the current conversation. Triggers include “上次怎么解决的”, “之前为什么这样选”, and “找以前的对话”.
+description: Retrieve past agent conversations with agent-history. Use when asked to recall a previous solution or decision, find discussions on another device, or recover historical context missing from the current conversation. Triggers include “上次怎么解决的”, “之前为什么这样选”, and “找以前的对话”.
 ---
 
 # Historical evidence, not current authority
