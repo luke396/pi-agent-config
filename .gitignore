@@ -28,9 +28,8 @@ git/
 # so syncing them only produces duplicates elsewhere.
 missions/
 
-# --- powerline stash history (runtime data) ---
-# The leading slash matters: without it this would also ignore
-# extensions/powerline-footer/theme.json.
+# --- Leftover data from the removed pi-powerline-footer package ---
+# (stash history, never tracked; the leading slash keeps the rule top-level only)
 /powerline-footer/
 
 # --- Omarchy-generated theme ---
