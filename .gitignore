@@ -1,35 +1,48 @@
-# --- 凭证（每台机器 /login 一次，绝不入库）---
+# --- Credentials (per-machine /login, never commit) ---
 auth.json
 
-# --- 本机批准记录（安全：同步等于把旧机器的批准自动带给新机器）---
+# --- Provider definitions ---
+# Machine-bound: gateway URL, quota group, model list. Decoupled from pi's own
+# settings, so each machine keeps its own copy.
+models.json
+
+# --- Local project-trust decisions ---
+# Security: syncing these would carry "I trusted this directory" approvals to
+# other machines, i.e. auto-approve unknown directories there.
 trust.json
 
-# --- 会话 / 运行时状态（体积大、持续变动、可再生）---
+# --- Sessions and runtime state (large, churning, regenerable) ---
 sessions/
 run-history.jsonl
 *.log
 *.bak
 .DS_Store
 
-# --- 缓存与上游托管目录（pi install / pi update 自动重建）---
+# --- Caches and upstream-managed trees (rebuilt by pi install / pi update) ---
 models-store.json
 npm/
 git/
 
-# --- 机器产出物（missions 目录名是本机路径哈希，换机只会产生重复垃圾）---
+# --- Machine-local artifacts ---
+# missions/ subdirectories are named after a hash of the local project path,
+# so syncing them only produces duplicates elsewhere.
 missions/
 
-# --- powerline stash 历史（运行时）---
-# 注意前导斜杠：只排顶层，别把 extensions/powerline-footer/theme.json 一起排掉
+# --- powerline stash history (runtime data) ---
+# The leading slash matters: without it this would also ignore
+# extensions/powerline-footer/theme.json.
 /powerline-footer/
 
-# --- Omarchy 自动生成的主题（从 $OMARCHY_PATH/default/themed/pi.json.tpl 渲染）---
-# 每台 Omarchy 机器换主题时自行重建；settings.json 里的 theme 键指向它，缺失时 pi 静默回落默认主题
+# --- Omarchy-generated theme ---
+# Rendered by Omarchy from $OMARCHY_PATH/default/themed/pi.json.tpl, so every
+# Omarchy machine regenerates it on theme change. settings.json still names it;
+# pi falls back to the default theme silently when the file is absent.
 /themes/omarchy-system.json
 
-# --- 第三方工具托管的文件：由该工具自己在每台机器安装，不由本仓库分发 ---
-# herdr 安装/更新集成时会覆盖此文件（文件头亦如此声明）
+# --- Files owned by third-party tools; each machine installs them itself ---
+# herdr overwrites this file whenever its integration is (re)installed.
 extensions/herdr-agent-state.ts
-# Omarchy 安装器建的符号链接，指向 /usr/share/omarchy/... ，入库会在非 Omarchy 机器上悬空
+# Omarchy installer symlinks targeting /usr/share/omarchy/... would dangle on
+# machines that do not have Omarchy.
 skills/diagnose-crash
 skills/omarchy
