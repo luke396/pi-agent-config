@@ -25,10 +25,13 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   JetBrainsMono Nerd Font, so the pin costs nothing.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
-- **`pi-codex-fast-mode` was uninstalled, not replaced.** pi core has no
-  `service_tier` support, so no interactive session asks for Codex priority tier
-  any more; subagent children still can, through pi-subagents' own fast hook.
-  Its preference (`state/pi-codex-fast-mode.json`) was off.
+- **`pi-codex-fast-mode` was uninstalled, not replaced.** pi core forwards
+  `serviceTier` into the request and prices the response by tier (priority ×2,
+  flex ×0.5), but exposes no switch — no flag, no settings key, nothing in the
+  docs; upstream treats tiers as too provider-specific for core. So no
+  interactive session asks for Codex priority tier any more, while subagent
+  children still can through pi-subagents' own fast hook. Its preference
+  (`state/pi-codex-fast-mode.json`) was off.
 
 ## Traps that cost time
 
@@ -37,7 +40,10 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   it reads `~/.pi/agent/web-search.json` — a credential store inside the synced
   repo. The ignore rule is root-anchored for that reason.
 - **Machine state can look like config.** `state/pi-codex-fast-mode.json` stayed
-  tracked, carrying one machine's toggle to every other; `state/` is ignored now.
+  tracked, carrying one machine's toggle to every other. `state/` is not pi's
+  convention — the package picked it (`join(agentDir, "state", …)`) and versions
+  the format itself (`version: 1`), so a synced copy is a private file format in
+  git that nobody reviews. `state/` is ignored now.
 - A `.gitignore` pattern without a leading slash matches at **any depth**, so
   `dir/` silently swallowed a nested `extensions/dir/theme.json`.
 - Omarchy installs its skills as **symlinked directories**; staged as content
