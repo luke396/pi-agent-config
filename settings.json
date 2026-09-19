@@ -8,7 +8,6 @@
   "skills": [],
   "packages": [
     "npm:pi-web-access",
-    "npm:pi-powerline-footer",
     "npm:pi-codex-fast-mode",
     "npm:pi-subagents",
     {
@@ -22,53 +21,9 @@
     {
       "source": "npm:pi-tokyo-night",
       "extensions": []
-    }
+    },
+    "npm:pi-open-tui"
   ],
-  "powerline": {
-    "preset": "default",
-    "layout": {
-      "left": [
-        "model",
-        "custom:think",
-        "path"
-      ],
-      "right": [
-        "custom:stats",
-        "custom:tps",
-        "cost"
-      ],
-      "secondary": []
-    },
-    "customItems": [
-      {
-        "id": "tps",
-        "statusKey": "tokenSpeed",
-        "position": "right",
-        "selfColorize": true
-      },
-      {
-        "id": "stats",
-        "statusKey": "barStats",
-        "position": "right",
-        "selfColorize": true
-      },
-      {
-        "id": "think",
-        "statusKey": "thinkLevel",
-        "position": "left",
-        "selfColorize": true
-      }
-    ],
-    "model": {
-      "display": "qualified"
-    },
-    "context": {
-      "format": "percent"
-    },
-    "cache_read": {
-      "format": "percent"
-    }
-  },
   "tokenSpeed": {
     "icon": ""
   }
