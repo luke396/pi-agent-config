@@ -3,7 +3,6 @@
 #   新机器： mv ~/.pi/agent ~/.pi/agent.bak
 #            git clone <url> ~/.pi/agent
 #            cd ~/.pi/agent && ./setup.sh
-#            cp ~/.pi/agent.bak/auth.json .   # 或重新 /login
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,10 +21,6 @@ fi
 # 本仓库不跟踪、也不分发的第三方托管文件，由各工具自行安装
 if [[ ! -f extensions/herdr-agent-state.ts ]]; then
     echo "提示：extensions/herdr-agent-state.ts 属于 herdr 托管，本仓库不含它。若用 herdr，请在其安装流程里重装集成。"
-fi
-
-if [[ ! -f auth.json ]]; then
-    echo "提示：auth.json 不在版本控制内。启动 pi 并 /login 后即可用（deepseek/cubence 的 API key 需手工填一次）。"
 fi
 
 echo "完成。"
