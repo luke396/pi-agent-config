@@ -1,44 +1,28 @@
 ---
 name: pi-config
-description: Rules, mechanisms and pitfalls for changing pi's own configuration in ~/.pi/agent (the package list, settings.json, open-tui.json, models.json, extensions/, skills/, themes/). Use whenever a pi package is added, removed, reordered or its resources filtered, whenever an extension hooks a UI slot, whenever a pi theme is changed or pinned, whenever any tracked file in ~/.pi/agent is edited, and whenever a pi UI feature suddenly stops working or an installed package appears to do nothing.
+description: Changing pi's own configuration in ~/.pi/agent (packages, settings.json, open-tui.json, models.json, extensions, skills, themes). Use when adding, removing, reordering or filtering a pi package, when hooking a UI slot, when changing or pinning a theme, and when an installed package appears to do nothing.
 ---
 
 # Changing pi's own config
 
-`~/.pi/agent` is pi's live config **and** a git repo. Every change here is a
-config change that other machines inherit, so it is never just an edit.
+This directory is pi's live config and a synced git repo, so an edit here is a
+decision every machine inherits. Prefer config over patching a package, and
+prefer the smallest edit.
 
-The iron rule (commit + push) lives in `AGENTS.md`; this skill is the procedure
-behind it.
+Worth weighing before changing something:
 
-## Procedure
+- **The UI slots are single-owner.** Header, footer and editor are replacements,
+  not layers: a second package hooking one takes it, and the incumbent's features
+  go inert without an error. Load order is the `packages` array order. Know what
+  a TUI package hooks before installing it, and do not "fix" features that are
+  inert by design.
+- **A feature that stops working after an edit is usually a slot handover**, not
+  a bug. Confirm by asking which package registered last, not by debugging the
+  loser.
+- **A package can be reduced to the parts worth having** rather than dropped.
+- **Machine-bound state must stay untracked; a deliberate pin is a decision to
+  record, not a default to inherit.**
+- **The change is done when the effect is observed**, not when the file reads
+  correctly. Sometimes the human is the only one who can see the effect.
 
-1. **Find out what the change actually touches.** For a package, grep it for
-   `ctx.ui.set` before installing — the UI slots are single-owner, so a package
-   that hooks an occupied slot silently disables either itself or the incumbent.
-   The ownership map and the conflicts already resolved are in
-   `reference/mechanisms.md`.
-2. **Make the smallest edit.** Prefer config over patching a package: a theme
-   override, a resource filter (`extensions: []`), a documented key. Note any
-   key whose behaviour depends on an undocumented field, and prefer reading it
-   defensively.
-3. **Verify empirically, don't assume.** At minimum run the RPC smoke test and
-   check for new startup warnings; for UI changes confirm the symptom is gone
-   (or ask the human to look, since the agent cannot see the screen). Recipes:
-   `reference/verification.md`.
-4. **Check the blast radius.** Anything machine-bound must not be committed
-   (`git status` should show only intended files); anything pinned by choice
-   (a theme, a version) is a decision another machine will inherit.
-5. **Record a new pitfall** in `reference/mechanisms.md` while it is fresh, then
-   commit and push.
-
-## Reference
-
-- `reference/mechanisms.md` — how this setup is arranged and why: sync model,
-  single-owner UI slots and current ownership, resource filtering, context-file
-  layers, the theme pipeline, what is per-machine.
-- `reference/verification.md` — how to prove a config change works without
-  guessing: RPC smoke test, ad-hoc extension hooks, throwaway config dirs,
-  prompt inspection, defensive field access.
-
-Read them before a non-trivial change, not after.
+Decisions and traps from past changes: `reference.md`.
