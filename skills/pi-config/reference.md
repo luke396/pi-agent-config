@@ -32,6 +32,13 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   interactive session asks for Codex priority tier any more, while subagent
   children still can through pi-subagents' own fast hook. Its preference
   (`state/pi-codex-fast-mode.json`) was off.
+- **Tracked local extensions are deliberate, not accidents.**
+  `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
+  so `extensions/thinking-medium-max.ts` is the only thinking control: Shift+Tab
+  toggles medium ↔ max, and the extension refuses to land on a level the current
+  model clamps instead of silently keeping a third state.
+  `extensions/claude-rules.ts` lists a project's `.claude/rules/*.md` in the
+  system prompt and is inert in projects that have no such directory.
 
 ## Traps that cost time
 

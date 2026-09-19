@@ -24,6 +24,8 @@ run-history.jsonl
 /state/
 *.log
 *.bak
+*.bak-*
+*.bak_*
 .DS_Store
 
 # --- Caches and upstream-managed trees (rebuilt by pi install / pi update) ---
@@ -35,6 +37,10 @@ git/
 # missions/ subdirectories are named after a hash of the local project path,
 # so syncing them only produces duplicates elsewhere.
 missions/
+
+# --- Machine-local scratch and manual backups ---
+/tmp/
+/backups/
 
 # --- Omarchy-generated theme ---
 # Rendered by Omarchy from $OMARCHY_PATH/default/themed/pi.json.tpl, so every
