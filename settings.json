@@ -1,5 +1,5 @@
 {
-  "theme": "tokyo-night",
+  "theme": "catppuccin-tui-mocha",
   "lastChangelogVersion": "0.85.1",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
@@ -21,6 +21,10 @@
       "source": "npm:pi-tokyo-night",
       "extensions": []
     },
-    "npm:pi-open-tui"
+    "npm:pi-open-tui",
+    {
+      "source": "npm:pi-catppuccin-tui",
+      "extensions": []
+    }
   ]
 }
