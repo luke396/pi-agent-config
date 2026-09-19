@@ -1,5 +1,5 @@
 {
-  "theme": "omarchy-system",
+  "theme": "tokyo-night",
   "lastChangelogVersion": "0.85.1",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
@@ -18,23 +18,58 @@
         "skills/productivity/**"
       ]
     },
-    "npm:pi-token-speed"
+    "npm:pi-token-speed",
+    {
+      "source": "npm:pi-tokyo-night",
+      "extensions": []
+    }
   ],
   "powerline": {
     "preset": "default",
     "layout": {
-      "left": ["model", "custom:think", "path"],
-      "right": ["custom:stats", "custom:tps", "cost"],
+      "left": [
+        "model",
+        "custom:think",
+        "path"
+      ],
+      "right": [
+        "custom:stats",
+        "custom:tps",
+        "cost"
+      ],
       "secondary": []
     },
     "customItems": [
-      { "id": "tps", "statusKey": "tokenSpeed", "position": "right", "selfColorize": true },
-      { "id": "stats", "statusKey": "barStats", "position": "right", "selfColorize": true },
-      { "id": "think", "statusKey": "thinkLevel", "position": "left", "selfColorize": true }
+      {
+        "id": "tps",
+        "statusKey": "tokenSpeed",
+        "position": "right",
+        "selfColorize": true
+      },
+      {
+        "id": "stats",
+        "statusKey": "barStats",
+        "position": "right",
+        "selfColorize": true
+      },
+      {
+        "id": "think",
+        "statusKey": "thinkLevel",
+        "position": "left",
+        "selfColorize": true
+      }
     ],
-    "model": { "display": "qualified" },
-    "context": { "format": "percent" },
-    "cache_read": { "format": "percent" }
+    "model": {
+      "display": "qualified"
+    },
+    "context": {
+      "format": "percent"
+    },
+    "cache_read": {
+      "format": "percent"
+    }
   },
-  "tokenSpeed": { "icon": "" }
+  "tokenSpeed": {
+    "icon": ""
+  }
 }
