@@ -25,9 +25,19 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   JetBrainsMono Nerd Font, so the pin costs nothing.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
+- **`pi-codex-fast-mode` was uninstalled, not replaced.** pi core has no
+  `service_tier` support, so no interactive session asks for Codex priority tier
+  any more; subagent children still can, through pi-subagents' own fast hook.
+  Its preference (`state/pi-codex-fast-mode.json`) was off.
 
 ## Traps that cost time
 
+- **`web-search.json` resolves into this repo on some machines.** pi-web-access
+  reads `$XDG_CONFIG_HOME/pi/web-search.json`, but with `XDG_CONFIG_HOME` unset
+  it reads `~/.pi/agent/web-search.json` — a credential store inside the synced
+  repo. The ignore rule is root-anchored for that reason.
+- **Machine state can look like config.** `state/pi-codex-fast-mode.json` stayed
+  tracked, carrying one machine's toggle to every other; `state/` is ignored now.
 - A `.gitignore` pattern without a leading slash matches at **any depth**, so
   `dir/` silently swallowed a nested `extensions/dir/theme.json`.
 - Omarchy installs its skills as **symlinked directories**; staged as content
