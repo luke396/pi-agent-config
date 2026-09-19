@@ -1,5 +1,10 @@
 # --- Credentials (per-machine /login, never commit) ---
 auth.json
+# pi-web-access reads its config from $XDG_CONFIG_HOME/pi/web-search.json, or
+# from this directory when XDG_CONFIG_HOME is unset. Its text *is* the secret
+# (API keys), so the fallback path must never be committable. Root-anchored so
+# nothing nested is swallowed.
+/web-search.json
 
 # --- Provider definitions ---
 # Machine-bound: gateway URL, quota group, model list. Decoupled from pi's own
@@ -14,6 +19,9 @@ trust.json
 # --- Sessions and runtime state (large, churning, regenerable) ---
 sessions/
 run-history.jsonl
+# Per-machine preference store, e.g. the toggle pi-codex-fast-mode wrote
+# before it was uninstalled. Root-anchored: a nested state/ dir is not ours.
+/state/
 *.log
 *.bak
 .DS_Store
