@@ -34,9 +34,16 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   (`state/pi-codex-fast-mode.json`) was off.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
-  so `extensions/thinking-medium-max.ts` is the only thinking control: Shift+Tab
-  toggles medium ↔ max, and the extension refuses to land on a level the current
-  model clamps instead of silently keeping a third state.
+  so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
+  alternates between two levels, and the extension refuses to land on a level
+  the current model clamps instead of silently keeping a third state.
+  **The two levels are per-model in that file's `TABLE`.** pi's own cycle is
+  model-aware too, but not two-stop; narrowing it is only safe if the pair
+  respects each model's `thinkingLevelMap`. DeepSeek (V4 Flash / V4 Pro) sets
+  `medium` to null, so its pair is high/max while Codex uses medium/max — a
+  hardcoded medium/max pair made Shift+Tab a dead key on DeepSeek, which is why
+  the table exists. Entries match on model id, so the proxy copy of DeepSeek
+  under another provider is covered by the same row.
   `extensions/claude-rules.ts` lists a project's `.claude/rules/*.md` in the
   system prompt and is inert in projects that have no such directory.
 
