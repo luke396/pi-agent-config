@@ -13,8 +13,10 @@ matters; MCP may truncate long messages.
 ## Files first, relevant context only
 
 The goal is to recover useful information, not produce a session index. Save
-complete CLI query responses directly to files in a private temporary directory
-outside project and synced config repositories. Use restrictive permissions
+complete CLI query responses directly to files in a private OS temporary directory
+(e.g. under `/tmp` on Linux, or the platform's temporary directory). This includes
+intermediate extracts and scratch scripts: keep them outside all repositories
+and pi's config, state, session, and artifact directories. Use restrictive permissions
 (e.g. `umask 077` and `mktemp -d`); keep stderr separate and check exit status
 before parsing. Redirect at the shell or subprocess boundary so raw payloads
 never become tool output first. Bound requests by relevance and pagination;
