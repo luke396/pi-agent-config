@@ -18,6 +18,11 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   A follow-up change made the peek throw rather than stay quiet, so it is off.
 - **`pi-catppuccin-tui` is filtered to its themes** because its extension would
   otherwise take the footer from open-tui.
+- **open-tui's `icons.mode` is pinned to `nerd`, not left on `auto`.** `auto`
+  keys off `TERM_PROGRAM`/`LC_TERMINAL`, which Alacritty never sets (and Herdr
+  passes through), so Linux silently fell back to ASCII (`@` `*` `#`) while the
+  Mac showed real glyphs. Every terminal here is already configured with
+  JetBrainsMono Nerd Font, so the pin costs nothing.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
 
@@ -32,6 +37,9 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   says nothing about whether credentials leaked. Check what is tracked instead.
 - Regenerated files look like config (`themes/omarchy-system.json`) and local
   path hashes look like content (`missions/`, `models-store.json`).
+- `open-tui.json` is read **once** into a module-level variable at startup
+  (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
+  screen is the only path that takes effect live.
 - Internal field names change between layers, and the documented name is not
   always the real one. Read such fields defensively rather than pinning them.
 

@@ -6,7 +6,7 @@
     "wheelScrollLines": 4
   },
   "icons": {
-    "mode": "auto"
+    "mode": "nerd"
   },
   "footerSegments": {
     "cwd": true,
