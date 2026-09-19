@@ -28,10 +28,6 @@ git/
 # so syncing them only produces duplicates elsewhere.
 missions/
 
-# --- Leftover data from the removed pi-powerline-footer package ---
-# (stash history, never tracked; the leading slash keeps the rule top-level only)
-/powerline-footer/
-
 # --- Omarchy-generated theme ---
 # Rendered by Omarchy from $OMARCHY_PATH/default/themed/pi.json.tpl, so every
 # Omarchy machine regenerates it on theme change. settings.json still names it;
