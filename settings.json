@@ -17,10 +17,6 @@
         "skills/productivity/**"
       ]
     },
-    {
-      "source": "npm:pi-tokyo-night",
-      "extensions": []
-    },
     "npm:pi-open-tui",
     {
       "source": "npm:pi-catppuccin-tui",
