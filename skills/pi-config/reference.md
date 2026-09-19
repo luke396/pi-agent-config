@@ -46,6 +46,17 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   under another provider is covered by the same row.
   `extensions/claude-rules.ts` lists a project's `.claude/rules/*.md` in the
   system prompt and is inert in projects that have no such directory.
+- **`tuiMode` is pinned to `regular`, reversed from a `fullscreen` pin.**
+  Fullscreen renders the transcript in the alternate screen, so the pane's
+  Herdr scrollback is empty: `herdr pane list` reports
+  `max_offset_from_bottom: 0` for that pane against 5408 lines for the same pi
+  in regular. Copy mode then has nothing to page, and `herdr pane read
+  --lines N` returns only the visible screen (49 rows) or, once it needs real
+  history, fails `agent_not_idle` — alternate-screen history can only be
+  captured by scrolling an idle agent, after waiting for one. Regular keeps
+  history in Herdr, where reads are passive at any agent state and cost
+  microseconds. For fullscreen in one session use `pi --tui-mode fullscreen`
+  rather than flipping this key, so the repo stays unpinned to one machine.
 
 ## Traps that cost time
 
