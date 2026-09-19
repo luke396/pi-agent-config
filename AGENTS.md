@@ -10,3 +10,6 @@ New-machine steps: the header of `setup.sh`.
 
 Before changing pi's config here (packages, settings.json, open-tui.json,
 models.json, extensions, skills, themes) → use the `pi-config` skill.
+
+When writing a skill here, record only what code and docs cannot tell you —
+judgement, deliberate decisions, traps — as guidance, not as prescribed steps.
