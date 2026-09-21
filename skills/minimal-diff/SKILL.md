@@ -58,10 +58,15 @@ reformatting untouched logic also needs a task-specific reason.
 
 ## What verification can establish
 
-Passing tests after deletion do not prove redundancy. Establish why the removed
-behavior is unnecessary under the supported contract, then use tests to challenge
-that reasoning. Tests invented only to exercise an added guard cannot, by themselves,
-justify that guard; independently required invalid-input behavior can.
+Use contract reasoning and controlled ablation together: deletion experiments can
+reveal dependencies and challenge assumptions. Passing tests after deletion are
+evidence, not proof of redundancy under the supported contract. Tests invented only
+to exercise an added guard cannot, by themselves, justify that guard; independently
+required invalid-input behavior can.
+
+Mutually supporting additions may be unnecessary as a group even when none can be
+removed alone. Keep acceptance criteria fixed during ablation and revalidate combined
+removals: individually removable changes may not be jointly removable.
 
 Check preserved behavior through real interfaces and relevant side effects. Mocks,
 static checks and baseline source comparisons provide different evidence from
