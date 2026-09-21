@@ -39,7 +39,13 @@ its place merely because callers were rewritten to use it. Conversely, a small
 wrapper can earn its place by expressing meaningful results or isolating a real
 dependency. Similar formulas or two call sites alone do not settle the question.
 
-## Prefer restoration over another layer
+## Compare smaller designs from the baseline
+
+For a coherent part of the cumulative diff, try a smaller implementation of the
+same requirements from the baseline, even before identifying a suspicious addition.
+Compare concrete alternatives by contracts, state, branches and caller burden—not
+line count. A purpose for each addition does not establish that the design as a
+whole is necessary. Seek a smaller design, not a claim of global minimality.
 
 Consider restoring a baseline interface, lifecycle or code position before adding
 helpers and flags to manage complexity introduced by this change. Keep a necessary
@@ -79,6 +85,6 @@ When changes are authorized, stay within that scope and inspect the cumulative d
 again for accidental baseline churn. Public defects and optional optimizations can
 be reported separately without being bundled into the feature.
 
-No findings is a valid result. Stop when remaining complexity has a concrete purpose
-or insufficient evidence to remove it, not when a deletion quota is met. Keep the
+No findings is a valid result. Stop when concrete alternatives offer no supported
+simplification or evidence is insufficient to choose, not when a deletion quota is met. Keep the
 report proportional: what can go, what must stay, why, and what was actually verified.
