@@ -30,6 +30,8 @@ run-history.jsonl
 
 # --- Caches and upstream-managed trees (rebuilt by pi install / pi update) ---
 models-store.json
+# pi-web-access fetched page content; private, short-lived, machine-local.
+/web-search-cache/
 npm/
 git/
 
