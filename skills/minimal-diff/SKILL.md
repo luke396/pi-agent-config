@@ -46,15 +46,14 @@ helpers and flags to manage complexity introduced by this change. Keep a necessa
 adaptation at the boundary that needs it, rather than changing upstream contracts
 and passing extra state to reconstruct information lost along the way.
 
-A little inherited duplication may be preferable to an incidental optimization
-that changes several callers. In Page DCP, keeping two per-step length calculations
-allowed the original global-length interface to survive. This is a tradeoff, not
-a rule that optimization is bad.
+Small repeated computations may be cheaper than sharing results through new state
+or changed interfaces. Weigh runtime savings against the contracts and lifecycle
+coupling introduced to obtain them.
 
-Check the provenance of proposed deletions. A Page DCP cleanup mistakenly removed
-upstream pack validation and tests; restoring them was the correct simplification
-of the feature diff. Moving old checks, rewriting surrounding comments or
-reformatting untouched logic also needs a task-specific reason.
+Check the provenance of proposed deletions. Restoring baseline behavior and tests
+removed incidentally can simplify the feature diff even when it adds lines back.
+Moving old checks, rewriting surrounding comments or reformatting untouched logic
+also needs a task-specific reason.
 
 ## What verification can establish
 
