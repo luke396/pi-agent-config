@@ -87,4 +87,4 @@ be reported separately without being bundled into the feature.
 
 No findings is a valid result. Stop when concrete alternatives offer no supported
 simplification or evidence is insufficient to choose, not when a deletion quota is met. Keep the
-report proportional: what can go, what must stay, why, and what was actually verified.
+report proportional: what can go, what is retained, why, and what was actually verified.
