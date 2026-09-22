@@ -11,6 +11,13 @@
 - Distinguish additions from baseline code: simplifying this change is not
   permission to alter existing behavior. Preserve safety checks at the boundary
   responsible for their contract.
+- Let ownership and lifetime determine value sources. Distinguish instance-fixed
+  configuration, peer-provided data and scoped runtime state; choose snapshots,
+  explicit parameters or live reads for that contract, not for uniformity.
+- Calibrate claims to evidence: distinguish source-established facts, reasoned
+  expectations and measured results. Scope performance conclusions to the
+  execution phase and workload actually analyzed or measured; a plausible
+  compiler optimization or a passing functional test is not a measured speedup.
 
 For redundancy audits, simplification or minimal-diff review, read
 `skills/minimal-diff/SKILL.md` (relative to this file).

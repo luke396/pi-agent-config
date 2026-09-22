@@ -39,6 +39,13 @@ its place merely because callers were rewritten to use it. Conversely, a small
 wrapper can earn its place by expressing meaningful results or isolating a real
 dependency. Similar formulas or two call sites alone do not settle the question.
 
+For newly added bindings, distinguish a useful name from a forwarding alias.
+Inline a single-use getter alias or trivial forwarding value when the use site
+already makes its role clear, preserving relevant evaluation order and lifetime.
+Named intermediate results, branch joins and protocol-field names can aid reasoning
+even with one use; explain that benefit rather than treating either the name or
+the use count as proof of necessity.
+
 ## Compare smaller designs from the baseline
 
 For a coherent part of the cumulative diff, try a smaller implementation of the
