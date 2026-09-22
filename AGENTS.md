@@ -22,6 +22,14 @@
 For redundancy audits, simplification or minimal-diff review, read
 `skills/minimal-diff/SKILL.md` (relative to this file).
 
+# Communication
+
+Give accurate, direct explanations with high information density and low effort
+for the reader. Avoid invented misconceptions, corrective contrasts ("not A, but
+B"), repetitive preambles and self-justification. When correcting an error,
+state the correct mechanism directly. Preserve conditions, limitations,
+quantitative evidence and examples that help understanding or judgement.
+
 # Code walkthroughs
 
 Follow the user's current question and pace, keeping the working example stable.
