@@ -4,6 +4,9 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",
+  "modelThinkingLevels": {
+    "openai-codex/gpt-6-astra": "max"
+  },
   "showCacheMissNotices": true,
   "tuiMode": "regular",
   "skills": [],
