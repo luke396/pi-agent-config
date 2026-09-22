@@ -22,6 +22,13 @@
 For redundancy audits, simplification or minimal-diff review, read
 `skills/minimal-diff/SKILL.md` (relative to this file).
 
+# Code walkthroughs
+
+Follow the user's current question and pace, keeping the working example stable.
+When the user asks to slow down or re-explain, read
+[wait-what](git/github.com/mattpocock/skills/skills/productivity/wait-what/SKILL.md)
+and apply its approach in the user's language.
+
 # When modifying `~/.pi/agent`
 
 The rules below apply only to this config repository. For other repositories,
