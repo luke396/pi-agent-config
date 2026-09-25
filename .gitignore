@@ -6,12 +6,6 @@ auth.json
 # nothing nested is swallowed.
 /web-search.json
 
-# pi-oracle stores provider cookies in its seed profiles and copies them into
-# per-job browser profiles. These must stay on this machine.
-/extensions/oracle-auth-seed-profile/
-/extensions/oracle-auth-seed-profile-grok/
-/extensions/oracle-runtime-profiles/
-
 # --- Provider definitions ---
 # Machine-bound: gateway URL, quota group, model list. Decoupled from pi's own
 # settings, so each machine keeps its own copy.
