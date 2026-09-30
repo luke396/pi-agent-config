@@ -1,11 +1,12 @@
 {
   "theme": "catppuccin-tui-mocha",
   "lastChangelogVersion": "0.85.1",
-  "defaultProvider": "openai-codex",
+  "defaultProvider": "openai",
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",
   "modelThinkingLevels": {
-    "openai-codex/gpt-6-astra": "max"
+    "openai-codex/gpt-6-astra": "max",
+    "openai/gpt-6-astra": "max"
   },
   "showCacheMissNotices": true,
   "tuiMode": "regular",
