@@ -1,5 +1,7 @@
 # --- Credentials (per-machine /login, never commit) ---
 auth.json
+# Pi's MCP OAuth tokens are also per-machine credentials.
+/mcp-auth.json
 # pi-web-access reads its config from $XDG_CONFIG_HOME/pi/web-search.json, or
 # from this directory when XDG_CONFIG_HOME is unset. Its text *is* the secret
 # (API keys), so the fallback path must never be committable. Root-anchored so

@@ -23,7 +23,7 @@ interface Stop {
 // First match wins, so keep specific entries above the catch-all.
 const TABLE: readonly Stop[] = [
   // DeepSeek V4 Flash / V4 Pro expose high and max, but not medium. Matched on
-  // the id so this also covers the proxy copy under the `openai` provider.
+  // the id so this also covers proxy copies under other providers.
   { model: /^deepseek-/i, levels: ["high", "max"] },
   // Codex, and any model with a standard map.
   { model: /.*/, levels: ["medium", "max"] },
