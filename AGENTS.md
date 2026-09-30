@@ -14,13 +14,19 @@
 - Let ownership and lifetime determine value sources. Distinguish instance-fixed
   configuration, peer-provided data and scoped runtime state; choose snapshots,
   explicit parameters or live reads for that contract, not for uniformity.
-- Calibrate claims to evidence: distinguish source-established facts, reasoned
-  expectations and measured results. Scope performance conclusions to the
-  execution phase and workload actually analyzed or measured; a plausible
-  compiler optimization or a passing functional test is not a measured speedup.
+- Distinguish source-established facts, reasoned expectations and measured
+  results. Scope performance claims to the phase and workload actually measured.
 
 For redundancy audits, simplification or minimal-diff review, read
 `skills/minimal-diff/SKILL.md` (relative to this file).
+
+# Communication
+
+Give accurate, direct explanations with high information density and low effort
+for the reader. Avoid invented misconceptions, corrective contrasts ("not A, but
+B"), repetitive preambles and self-justification. When correcting an error,
+state the correct mechanism directly. Preserve conditions, limitations,
+quantitative evidence and examples that help understanding or judgement.
 
 # Code walkthroughs
 
@@ -31,9 +37,7 @@ and apply its approach in the user's language.
 
 # When modifying `~/.pi/agent`
 
-The rules below apply only to this config repository. For other repositories,
-follow their own instructions; this section does not require committing or
-pushing changes there.
+These repository-specific rules apply only to `~/.pi/agent`.
 
 This directory is the live pi config and a synced git repo pushed to
 `github.com/luke396/pi-agent-config`. Other machines clone it.
