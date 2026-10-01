@@ -25,13 +25,14 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   JetBrainsMono Nerd Font, so the pin costs nothing.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
-- **`pi-codex-fast-mode` was uninstalled, not replaced.** pi core forwards
-  `serviceTier` into the request and prices the response by tier (priority ×2,
-  flex ×0.5), but exposes no switch — no flag, no settings key, nothing in the
-  docs; upstream treats tiers as too provider-specific for core. So no
-  interactive session asks for Codex priority tier any more, while subagent
-  children still can through pi-subagents' own fast hook. Its preference
-  (`state/pi-codex-fast-mode.json`) was off.
+- **Fast is an opt-in per provider/model, not a global toggle.**
+  `pi-codex-fast-mode` remains uninstalled. For `openai`, local `models.json`
+  overrides can carry `samplingParams.service_tier`; no injection extension is
+  needed. In a 2026-10-01 ChatGPT OAuth check, `"fast"` was rejected with HTTP
+  400, while `"priority"` completed successfully. The response still reported
+  `"default"`, so this verified the requested setting and compatibility, not
+  actual acceleration. Keep that distinction when reporting success. Subagent
+  children can also request priority through pi-subagents' own fast hook.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
