@@ -12,6 +12,9 @@
     },
     "grilling": {
       "modelInvocation": "disabled"
+    },
+    "pi-subagents": {
+      "modelInvocation": "disabled"
     }
   }
 }
