@@ -4,6 +4,15 @@ Stay within the current task's authorized scope. Moving from explanation,
 review or discussion to edits, privileged actions or external updates requires
 explicit authorization from the user or repository rules.
 
+# Subagent delegation
+
+You may autonomously delegate independent research, code exploration and review
+when doing so has a concrete expected benefit. Choose the smallest useful
+division of work; the parent agent remains responsible for judgement,
+integration and verification. Avoid duplicating the same investigation across
+parent and children. Keep implementation write ownership clear, and require a
+concrete reason for additional review rounds.
+
 # General coding judgement
 
 - Justify new abstractions, state, branches and checks by current requirements
