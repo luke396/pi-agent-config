@@ -1,8 +1,7 @@
 {
   "mcpServers": {
     "deepwiki": {
-      "url": "https://mcp.deepwiki.com/mcp",
-      "exposure": "direct"
+      "url": "https://mcp.deepwiki.com/mcp"
     }
   }
 }

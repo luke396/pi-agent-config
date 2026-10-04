@@ -5,6 +5,9 @@
   "defaultModel": "gpt-6-astra",
   "defaultThinkingLevel": "medium",
   "defaultTools": ["+codemode"],
+  "codemode": {
+    "mode": "only"
+  },
   "modelThinkingLevels": {
     "openai-codex/gpt-6-astra": "max",
     "openai/gpt-6-astra": "max",
