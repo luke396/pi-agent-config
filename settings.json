@@ -18,17 +18,7 @@
   "skills": [],
   "packages": [
     "npm:pi-web-access",
-    {
-      "source": "npm:pi-subagents",
-      "skills": [
-        "**",
-        "-skills/council-mode/SKILL.md"
-      ],
-      "prompts": [
-        "**",
-        "-prompts/council.md"
-      ]
-    },
+    "npm:pi-subagents",
     {
       "source": "git:github.com/mattpocock/skills",
       "skills": [
