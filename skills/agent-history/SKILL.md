@@ -52,7 +52,11 @@ report, not permission to treat a proposal as a successful fix.
 The archive includes child, one-shot, and automated sessions. Attribute their
 claims to their actual author and context; an advisor's conclusion is not a
 user decision. Even `role=user` in a child session can be a parent agent's task,
-not the human's words. Prefer the originating conversation when resolving intent.
+not the human's words. In relay or approval transcripts, identify the original
+speaker; distinguish permission to act, actual execution and human acceptance.
+Prefer the originating conversation when resolving intent. When assessing
+recurrence, count distinct original messages, merging forked and copied versions
+of the same message.
 A later conversation can supersede an earlier decision; neither establishes
 the current code or machine state without checking it.
 

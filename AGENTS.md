@@ -1,3 +1,9 @@
+# Task scope
+
+Stay within the current task's authorized scope. Moving from explanation,
+review or discussion to edits, privileged actions or external updates requires
+explicit authorization from the user or repository rules.
+
 # General coding judgement
 
 - Justify new abstractions, state, branches and checks by current requirements
