@@ -20,7 +20,9 @@
       "source": "git:github.com/mattpocock/skills",
       "skills": [
         "skills/engineering/**",
-        "skills/productivity/**"
+        "skills/productivity/**",
+        "-skills/engineering/research/SKILL.md",
+        "-skills/productivity/writing-for-agents/SKILL.md"
       ]
     },
     "npm:pi-open-tui",
