@@ -1,0 +1,17 @@
+{
+  "skills": {
+    "$schemaVersion": 2,
+    "research": {
+      "modelInvocation": "disabled"
+    },
+    "writing-for-agents": {
+      "modelInvocation": "disabled"
+    },
+    "code-review": {
+      "modelInvocation": "disabled"
+    },
+    "grilling": {
+      "modelInvocation": "disabled"
+    }
+  }
+}
