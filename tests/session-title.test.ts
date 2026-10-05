@@ -211,6 +211,19 @@ for (const event of ["session_before_switch", "session_before_fork", "session_be
 	});
 }
 
+test("shutdown skips late naming events and commands before touching invalidated context", async () => {
+	const f = fake(); await f.start(); f.turn();
+	await f.emit("session_shutdown");
+	Object.defineProperty(f.ctx, "sessionManager", {
+		get() { throw new Error("Pi context is no longer active"); },
+	});
+	await f.emit("session_info_changed");
+	await f.command("status");
+	await f.command("now");
+	assert.equal(f.calls.length, 0);
+	assert.equal(f.notices.length, 0);
+});
+
 test("session replacement drops old result and permits new session work", async () => {
 	const f = fake(); const old = deferred(); await f.start(); f.provider(() => old.promise); f.turn();
 	await f.emit("agent_settled"); await f.replace();

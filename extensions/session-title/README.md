@@ -83,7 +83,7 @@ From the repository root, using Node 26.7.0's native TypeScript support:
 node --test tests/session-title.test.ts
 ```
 
-The 43 tests wire the actual extension factory to a minimal Pi fake, with
+The 44 tests wire the actual extension factory to a minimal Pi fake, with
 deferred providers and mocked time. They make **no provider requests**. API
 contracts were checked against installed 1.0.3 docs and the official `v1.0.3`
 source, especially `session_info_changed`, `agent_settled`, session-global names

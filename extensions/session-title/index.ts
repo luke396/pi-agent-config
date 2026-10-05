@@ -18,7 +18,7 @@ type State = {
 	lastAttempt: number | null;
 	inputHash: string | null;
 };
-type Job = { controller: AbortController; timer?: ReturnType<typeof setTimeout>; cancelled: boolean };
+type Job = { controller: AbortController; timer?: ReturnType<typeof setTimeout> };
 
 function nameEntries(ctx: ExtensionContext) {
 	return ctx.sessionManager.getEntries().filter((entry) => entry.type === "session_info");
@@ -81,21 +81,19 @@ export default function sessionTitle(pi: ExtensionAPI) {
 	const configured = slash > 0 && modelId.length > 0 && Number.isFinite(cooldown) && cooldown >= 0;
 	let state: State | undefined;
 	let sessionId: string | undefined;
-	let closed = true;
 	let pending: Job | undefined;
 	let writing: { previousId: string | null; title: string } | undefined;
 	let lastResult = "No attempt this runtime";
 
 	function cancel() {
 		if (!pending) return;
-		pending.cancelled = true;
 		clearTimeout(pending.timer);
 		pending.controller.abort();
 		// Keep the lane occupied until even an abort-ignoring provider settles.
 	}
 	function save() { pi.appendEntry(STATE, { ...state! }); }
 	function current(ctx: ExtensionContext) {
-		return !closed && state !== undefined && sessionId === ctx.sessionManager.getSessionId();
+		return state !== undefined && sessionId === ctx.sessionManager.getSessionId();
 	}
 	function reconcile(ctx: ExtensionContext) {
 		if (!current(ctx)) return;
@@ -114,7 +112,6 @@ export default function sessionTitle(pi: ExtensionAPI) {
 	function load(ctx: ExtensionContext) {
 		cancel();
 		pending = undefined;
-		closed = false;
 		sessionId = ctx.sessionManager.getSessionId();
 		// Names are session-global in Pi, so ownership must follow file order too,
 		// rather than resurrecting an old auto marker on a different branch.
@@ -143,7 +140,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 		const model = ctx.modelRegistry.find(provider, modelId);
 		if (!model) return lastResult = `Model unavailable: ${modelSpec}`;
 		const previousTitle = (pi.getSessionName() ?? "").slice(0, 120);
-		const job: Job = { controller: new AbortController(), cancelled: false };
+		const job: Job = { controller: new AbortController() };
 		pending = job;
 		job.timer = setTimeout(() => {
 			if (pending !== job) return;
@@ -159,9 +156,9 @@ export default function sessionTitle(pi: ExtensionAPI) {
 					systemPrompt: SYSTEM,
 					messages: [{ role: "user", content: JSON.stringify({ previousTitle, recentMessages: JSON.parse(input) }), timestamp: now }],
 				}, { signal: job.controller.signal, maxTokens: 2048, reasoning: "low", timeoutMs: DEADLINE_MS, maxRetries: 0 }).result();
-				if (pending !== job || job.cancelled || !current(ctx)) return;
+				if (pending !== job || job.controller.signal.aborted || !current(ctx)) return;
 				reconcile(ctx); // The name may have changed while another event handler was awaiting.
-				if (job.cancelled || state!.mode !== "auto" || recentInput(ctx) !== input) return;
+				if (job.controller.signal.aborted || state!.mode !== "auto" || recentInput(ctx) !== input) return;
 				const title = parseTitle(response);
 				lastResult = "KEEP or invalid response; title preserved";
 				if (!title || title === pi.getSessionName()) return;
@@ -177,7 +174,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 				save();
 				lastResult = "Title updated";
 			} catch {
-				if (pending === job && !job.cancelled) lastResult = "Naming failed; title preserved";
+				if (pending === job && !job.controller.signal.aborted) lastResult = "Naming failed; title preserved";
 			} finally {
 				clearTimeout(job.timer);
 				if (pending === job) pending = undefined;
@@ -193,7 +190,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 	pi.on("session_before_fork", () => cancel());
 	pi.on("session_before_tree", () => cancel());
 	pi.on("session_tree", (_event, ctx) => { cancel(); reconcile(ctx); });
-	pi.on("session_shutdown", () => { closed = true; cancel(); });
+	pi.on("session_shutdown", () => { state = undefined; cancel(); });
 	pi.on("agent_settled", (_event, ctx) => {
 		if (ctx.mode === "tui") attempt(ctx, false);
 	});
