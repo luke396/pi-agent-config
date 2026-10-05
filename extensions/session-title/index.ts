@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 
 const STATE = "session-title.v1";
@@ -16,7 +15,6 @@ type State = {
 	mode: "auto" | "pinned";
 	nameEntryId: string | null;
 	lastAttempt: number | null;
-	inputHash: string | null;
 };
 type Job = { controller: AbortController; timer?: ReturnType<typeof setTimeout> };
 
@@ -31,8 +29,9 @@ function storedState(entries: SessionEntry[]): State | undefined {
 		const s = entry.data as Partial<State> | undefined;
 		if (s?.version === 1 && (s.mode === "auto" || s.mode === "pinned") &&
 			(s.nameEntryId === null || typeof s.nameEntryId === "string") &&
-			(s.lastAttempt === null || (typeof s.lastAttempt === "number" && Number.isFinite(s.lastAttempt))) &&
-			(s.inputHash === null || typeof s.inputHash === "string")) return { ...s } as State;
+			(s.lastAttempt === null || (typeof s.lastAttempt === "number" && Number.isFinite(s.lastAttempt)))) {
+			return { version: 1, mode: s.mode, nameEntryId: s.nameEntryId, lastAttempt: s.lastAttempt };
+		}
 		return undefined;
 	}
 }
@@ -117,7 +116,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 		// rather than resurrecting an old auto marker on a different branch.
 		state = storedState(ctx.sessionManager.getEntries()) ?? {
 			version: 1, mode: nameEntries(ctx).length > 0 ? "pinned" : "auto",
-			nameEntryId: nameEntries(ctx).at(-1)?.id ?? null, lastAttempt: null, inputHash: null,
+			nameEntryId: nameEntries(ctx).at(-1)?.id ?? null, lastAttempt: null,
 		};
 		reconcile(ctx);
 	}
@@ -130,12 +129,9 @@ export default function sessionTitle(pi: ExtensionAPI) {
 		if (!configured) return "Invalid PI_AUTO_TITLE_MODEL or PI_AUTO_TITLE_COOLDOWN_MS";
 		const input = recentInput(ctx);
 		if (!input) return "No completed user/assistant text to name";
-		const hash = createHash("sha256").update(input).digest("hex");
 		const now = Date.now();
-		if (!force && (hash === state!.inputHash ||
-			(state!.lastAttempt !== null && now - state!.lastAttempt < cooldown))) return "Unchanged input or cooldown";
+		if (!force && state!.lastAttempt !== null && now - state!.lastAttempt < cooldown) return "Cooldown";
 		state!.lastAttempt = now;
-		state!.inputHash = hash;
 		save(); // Missing models, auth errors, KEEP and invalid responses consume cooldown too.
 		const model = ctx.modelRegistry.find(provider, modelId);
 		if (!model) return lastResult = `Model unavailable: ${modelSpec}`;

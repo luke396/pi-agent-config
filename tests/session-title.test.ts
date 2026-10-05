@@ -110,14 +110,29 @@ test("first name uses dedicated model, stable topic KEEP, then material topic ch
 	assert.equal(f.getName(), "Pi 动态会话命名");
 });
 
-test("success cooldown, unchanged input suppression, and no idle polling", async (t) => {
+test("cooldown survives reload; unchanged input can be checked again without idle polling", async (t) => {
 	clock(t); const f = fake(); await f.start(); f.turn();
 	await f.emit("agent_settled"); await flush();
 	f.turn("配置 Pi", "好的"); await f.emit("agent_settled"); assert.equal(f.calls.length, 1);
 	t.mock.timers.tick(600_000); assert.equal(f.calls.length, 1, "elapsed time does not trigger requests");
 	await f.emit("agent_settled"); await flush(); assert.equal(f.calls.length, 2);
-	t.mock.timers.tick(3_600_000); await f.emit("agent_settled"); assert.equal(f.calls.length, 2);
-	await f.reload(); await f.emit("agent_settled"); assert.equal(f.calls.length, 2, "duplicate hash survives reload");
+	t.mock.timers.tick(600_000); await f.emit("agent_settled"); await flush();
+	assert.equal(f.calls.length, 3, "same input is eligible after cooldown");
+	await f.reload(); await f.emit("agent_settled"); assert.equal(f.calls.length, 3, "cooldown survives reload");
+	t.mock.timers.tick(600_000); assert.equal(f.calls.length, 3, "still no idle polling");
+	await f.emit("agent_settled"); await flush(); assert.equal(f.calls.length, 4);
+});
+
+test("legacy hash state restores ownership and cooldown without rewriting the obsolete field", async (t) => {
+	clock(t); const f = fake(); await f.start(); f.turn();
+	await f.emit("agent_settled"); await flush();
+	f.state().inputHash = "legacy hash";
+	await f.reload(); await f.emit("agent_settled"); assert.equal(f.calls.length, 1);
+	t.mock.timers.tick(600_000); await f.emit("agent_settled"); await flush();
+	assert.equal(f.calls.length, 2);
+	assert.equal(f.state().mode, "auto");
+	assert.equal(f.getName(), "首个主题");
+	assert.equal("inputHash" in f.state(), false);
 });
 
 test("failure preserves good title and attempt cooldown across reload", async (t) => {
@@ -284,7 +299,7 @@ test("commands status/on/off/now: explicit opt-in and forced retries, no implici
 	await f.start(); f.turn(); await f.command(); assert.match(f.notices.at(-1)!, /pinned/);
 	await f.command("on"); assert.equal(f.calls.length, 0);
 	await f.command("now"); await flush(); assert.equal(f.getName(), "首个主题");
-	await f.command("now"); await flush(); assert.equal(f.calls.length, 2, "now bypasses duplicate/cooldown intentionally");
+	await f.command("now"); await flush(); assert.equal(f.calls.length, 2, "now bypasses cooldown intentionally");
 	const d = deferred(); f.provider(() => d.promise); await f.command("now");
 	await f.command("off"); assert.equal(f.calls[2].config.signal.aborted, true);
 	d.resolve(response("unwanted")); await flush(); assert.equal(f.getName(), "首个主题");

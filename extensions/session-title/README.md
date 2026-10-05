@@ -36,8 +36,9 @@ API billing. Naming calls are currently **not included in Pi's footer or
 - One request, low reasoning, 2,048 output tokens, 20-second deadline/abort,
   provider timeout and zero SDK retries. No provider/model fallback.
 - Default cooldown is **10 minutes since the attempt**, including missing model,
-  authentication/provider failure, invalid response and KEEP. Attempt time and
-  recent-input hash persist. Unchanged bounded input is not retried automatically.
+  authentication/provider failure, invalid response and KEEP. Attempt time
+  persists across resume. A later completed turn can be checked after cooldown,
+  even when its bounded text matches the previous attempt.
 - Only `agent_settled` in `ctx.mode === "tui"` triggers automatic work. No startup
   requests, polling or scheduling. The only timer bounds an active request.
   Print/JSON/RPC runs do not automatically name sessions.
@@ -57,7 +58,7 @@ is pinned. Manual changes pin even when the new text equals the old text.
 | `/auto-title` or `/auto-title status` | Show auto/pinned state, model, cooldown and runtime result. |
 | `/auto-title off` | Pin the current name (including an empty name); abort pending work. |
 | `/auto-title on` | Explicitly opt back in and adopt the current title; do not request immediately or reset cooldown. |
-| `/auto-title now` | While enabled, request once using completed text, bypassing cooldown and duplicate suppression. Does not unpin or overlap an existing request. Works in other modes too. |
+| `/auto-title now` | While enabled, request once using completed text, bypassing cooldown. Does not unpin or overlap an existing request. Works in other modes too. |
 
 Ownership and attempts use native `session-title.v1` custom entries, outside
 model context. The marker identifies the exact owned `session_info` entry,
@@ -83,7 +84,7 @@ From the repository root, using Node 26.7.0's native TypeScript support:
 node --test tests/session-title.test.ts
 ```
 
-The 44 tests wire the actual extension factory to a minimal Pi fake, with
+The 45 tests wire the actual extension factory to a minimal Pi fake, with
 deferred providers and mocked time. They make **no provider requests**. API
 contracts were checked against installed 1.0.3 docs and the official `v1.0.3`
 source, especially `session_info_changed`, `agent_settled`, session-global names
