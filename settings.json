@@ -18,6 +18,11 @@
   "terminal": {
     "images": "kitty"
   },
+  "subagents": {
+    "watchdog": {
+      "enabled": true
+    }
+  },
   "skills": [],
   "packages": [
     "npm:pi-web-access",
