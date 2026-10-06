@@ -16,8 +16,8 @@
     "gitCommit": false,
     "runtime": true,
     "context": true,
-    "tokens": true,
-    "cost": true,
+    "tokens": false,
+    "cost": false,
     "extensionStatuses": true
   },
   "telemetry": {
