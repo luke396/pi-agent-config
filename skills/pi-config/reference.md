@@ -3,28 +3,50 @@
 Only things the code cannot tell you: what was chosen here on purpose, and what
 it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 
-## Chosen on purpose
+## UI and display
 
-- **The repo is cloned in place, not symlinked.** Omarchy rewrites
-  `settings.json` by writing a temp file and moving it over the original, which
-  replaces the inode; a symlink would be left dangling. Assume external writers
-  may do this.
-- **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
-  theme.** Matching the Catppuccin desktop today is a choice, not a
-  consequence. `omarchy-theme-set-pi --activate` rewrites the setting to
-  `omarchy-system`, but only at install time.
+- **The UI slots are single-owner.** Header, footer and editor are replacements,
+  not layers: a second package hooking one takes it, and the incumbent's features
+  go inert without an error. Load order is the `packages` array order. Know what
+  a TUI package hooks before installing it, and do not "fix" features that are
+  inert by design.
+- **For header, footer or editor regressions after changing TUI packages, check
+  the active slot owner and registration order first.**
 - **`pi-open-tui` owns header and footer, `pi-vim` owns the editor.** Expected
   consequence: open-tui's editor frame, cursor style and thinking peek are inert.
   A follow-up change made the peek throw rather than stay quiet, so it is off.
 - **`pi-catppuccin-tui` is filtered to its themes** because its extension would
   otherwise take the footer from open-tui.
+- **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
+  slots.
+- `open-tui.json` is read **once** into a module-level variable at startup
+  (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
+  screen is the only path that takes effect live.
+- **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
+  theme.** Matching the Catppuccin desktop today is a choice, not a
+  consequence. Omarchy's install setup passes `--activate` to
+  `omarchy-theme-set-pi`, selecting `omarchy-system`. Regular theme changes only
+  refresh pi's generated theme file; an explicit `--activate` call can also
+  change the setting later.
 - **open-tui's `icons.mode` is pinned to `nerd`, not left on `auto`.** `auto`
   keys off `TERM_PROGRAM`/`LC_TERMINAL`, which Alacritty never sets (and Herdr
   passes through), so Linux silently fell back to ASCII (`@` `*` `#`) while the
   Mac showed real glyphs. Every terminal here is already configured with
   JetBrainsMono Nerd Font, so the pin costs nothing.
-- **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
-  slots.
+- **`tuiMode` is pinned to `regular`, reversed from a `fullscreen` pin.**
+  Fullscreen renders the transcript in the alternate screen, so the pane's
+  Herdr scrollback is empty: `herdr pane list` reports
+  `max_offset_from_bottom: 0` for that pane against 5408 lines for the same pi
+  in regular. Copy mode then has nothing to page, and `herdr pane read
+  --lines N` returns only the visible screen (49 rows) or, once it needs real
+  history, fails `agent_not_idle` — alternate-screen history can only be
+  captured by scrolling an idle agent, after waiting for one. Regular keeps
+  history in Herdr, where reads are passive at any agent state and cost
+  microseconds. For fullscreen in one session use `pi --tui-mode fullscreen`
+  rather than flipping this key, so the repo stays unpinned to one machine.
+
+## Models and local extensions
+
 - **Fast is an opt-in per provider/model, not a global toggle.**
   `pi-codex-fast-mode` remains uninstalled. For `openai`, local `models.json`
   overrides can carry `samplingParams.service_tier`; no injection extension is
@@ -47,20 +69,16 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   under another provider is covered by the same row.
   `extensions/claude-rules.ts` lists a project's `.claude/rules/*.md` in the
   system prompt and is inert in projects that have no such directory.
-- **`tuiMode` is pinned to `regular`, reversed from a `fullscreen` pin.**
-  Fullscreen renders the transcript in the alternate screen, so the pane's
-  Herdr scrollback is empty: `herdr pane list` reports
-  `max_offset_from_bottom: 0` for that pane against 5408 lines for the same pi
-  in regular. Copy mode then has nothing to page, and `herdr pane read
-  --lines N` returns only the visible screen (49 rows) or, once it needs real
-  history, fails `agent_not_idle` — alternate-screen history can only be
-  captured by scrolling an idle agent, after waiting for one. Regular keeps
-  history in Herdr, where reads are passive at any agent state and cost
-  microseconds. For fullscreen in one session use `pi --tui-mode fullscreen`
-  rather than flipping this key, so the repo stays unpinned to one machine.
+- Internal field names change between layers, and the documented name is not
+  always the real one. Read such fields defensively rather than pinning them.
 
-## Traps that cost time
+## File ownership and sync
 
+- **The repo is cloned in place, not symlinked.** Omarchy can update
+  `settings.json` through a temporary file followed by `mv`. If `settings.json`
+  itself is a symlink, that replaces the link with a regular file while leaving
+  its target unchanged. A symlinked parent directory survives this file
+  replacement. Account for external writers that use this pattern.
 - **`web-search.json` resolves into this repo on some machines.** pi-web-access
   reads `$XDG_CONFIG_HOME/pi/web-search.json`, but with `XDG_CONFIG_HOME` unset
   it reads `~/.pi/agent/web-search.json` — a credential store inside the synced
@@ -80,11 +98,6 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   says nothing about whether credentials leaked. Check what is tracked instead.
 - Regenerated files look like config (`themes/omarchy-system.json`) and local
   path hashes look like content (`missions/`, `models-store.json`).
-- `open-tui.json` is read **once** into a module-level variable at startup
-  (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
-  screen is the only path that takes effect live.
-- Internal field names change between layers, and the documented name is not
-  always the real one. Read such fields defensively rather than pinning them.
 
 ## Where the rest of the truth lives
 

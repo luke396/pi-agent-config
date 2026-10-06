@@ -43,6 +43,9 @@ Use lexical search: this archive deliberately has no vector index. For past
 discussions, prefer `--in messages --exclude-system` initially; expand to tool
 content when looking for execution evidence or when conversation text is insufficient.
 
+For internal pagination, ordinals may be sparse: continue ascending pages after
+the returned last ordinal, not by adding the message count.
+
 Search hits locate evidence, not conclusions. Judge completion by the question:
 a past solution needs the approach and evidence of whether it worked; a decision
 needs the reasons, user's acceptance and any later revision found. Distinguish
@@ -64,9 +67,7 @@ When the question is answered, stop. Give the answer with necessary context,
 separating explicit statements from inference. If further searches add no useful
 evidence, report the scope and gap rather than searching indefinitely. Session
 IDs, ordinals and query statistics are internal aids, not default deliverables;
-include references when useful or requested. For internal pagination, ordinals
-may be sparse: continue ascending pages after the returned last ordinal, not
-by adding the message count.
+include references when useful or requested.
 
 ## Boundaries and failure interpretation
 
