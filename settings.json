@@ -15,6 +15,9 @@
   },
   "showCacheMissNotices": true,
   "tuiMode": "regular",
+  "terminal": {
+    "images": "kitty"
+  },
   "skills": [],
   "packages": [
     "npm:pi-web-access",
