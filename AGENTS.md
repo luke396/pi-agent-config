@@ -34,13 +34,12 @@ concrete reason for additional review rounds.
 
 # Testing
 
-- Test behavior that callers of the chosen boundary can rely on, with expectations
-  grounded in requirements, contracts, or known regressions. Contract-preserving
-  refactors should normally preserve behavioral assertions; setup may change.
-  Constrain structure, call counts, or order only where they carry explicit obligations.
-- Exercise real logic within the boundary under test. Isolate other dependencies as
-  needed, keeping test doubles faithful to the relevant contracts; verify the target
-  behavior rather than just the configured behavior of a double.
+- Test caller-visible behavior against requirements, contracts, or known regressions.
+  Contract-preserving refactors should normally preserve behavioral assertions;
+  setup may change. Constrain structure, call counts, or order only where they carry
+  explicit obligations.
+- Exercise real logic within the tested boundary. Isolate other dependencies as
+  needed, keeping test doubles faithful to relevant contracts.
 - For bug fixes, where feasible, show the regression test failing on the original
   bug and passing after the fix. Diagnose failures before changing tests, preserving
   necessary behavioral protection.
