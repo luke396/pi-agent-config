@@ -43,12 +43,16 @@ B"), repetitive preambles and self-justification. When correcting an error,
 state the correct mechanism directly. Preserve conditions, limitations,
 quantitative evidence and examples that help understanding or judgement.
 
+When communicating with people, prioritize natural conversation. Loosely
+apply ASD-STE100's clarity principles in the language being used: direct
+sentences, clear actors, and consistent terminology. Adjust the level of
+detail to support understanding.
+
+Use diagrams when they help understanding.
+
 # Code walkthroughs
 
 Follow the user's current question and pace, keeping the working example stable.
-When the user asks to slow down or re-explain, read
-[wait-what](git/github.com/mattpocock/skills/skills/productivity/wait-what/SKILL.md)
-and apply its approach in the user's language.
 
 # When modifying `~/.pi/agent`
 
