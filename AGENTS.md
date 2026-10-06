@@ -32,6 +32,22 @@ concrete reason for additional review rounds.
 - Distinguish source-established facts, reasoned expectations and measured
   results. Scope performance claims to the phase and workload actually measured.
 
+# Testing
+
+- Test behavior that callers of the chosen boundary can rely on, with expectations
+  grounded in requirements, contracts, or known regressions. Contract-preserving
+  refactors should normally preserve behavioral assertions; setup may change.
+  Constrain structure, call counts, or order only where they carry explicit obligations.
+- Exercise real logic within the boundary under test. Isolate other dependencies as
+  needed, keeping test doubles faithful to the relevant contracts; verify the target
+  behavior rather than just the configured behavior of a double.
+- For bug fixes, where feasible, show the regression test failing on the original
+  bug and passing after the fix. Diagnose failures before changing tests, preserving
+  necessary behavioral protection.
+- Reuse existing test infrastructure and choose verification proportionate to risk.
+  Added tests and scaffolding should provide additional fault detection or
+  boundary evidence.
+
 # Communication
 
 Give accurate, direct explanations with high information density and low effort
