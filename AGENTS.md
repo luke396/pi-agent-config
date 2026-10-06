@@ -32,9 +32,6 @@ concrete reason for additional review rounds.
 - Distinguish source-established facts, reasoned expectations and measured
   results. Scope performance claims to the phase and workload actually measured.
 
-For redundancy audits, simplification or minimal-diff review, read
-`skills/minimal-diff/SKILL.md` (relative to this file).
-
 # Communication
 
 Give accurate, direct explanations with high information density and low effort
@@ -56,17 +53,12 @@ Follow the user's current question and pace, keeping the working example stable.
 
 # When modifying `~/.pi/agent`
 
-These repository-specific rules apply only to `~/.pi/agent`.
-
 This directory is the live pi config and a synced git repo pushed to
 `github.com/luke396/pi-agent-config`. Other machines clone it.
 
 **After changing a tracked file here, commit and push.** Never commit `auth.json`
 or `models.json`. What is per-machine, and why: `.gitignore`.
 New-machine steps: the header of `setup.sh`.
-
-Before changing pi's config here (packages, settings.json, open-tui.json,
-models.json, extensions, skills, themes) → use the `pi-config` skill.
 
 When writing a skill here, prioritize what code and docs cannot tell you —
 judgement, deliberate decisions and traps. Prescribe steps only when correctness
