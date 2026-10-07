@@ -23,6 +23,8 @@ sessions/
 run-history.jsonl
 # pi-config-sync clean/smudge filter and this machine's settings fields.
 /.git-sync/
+# pi-subagents upgrade-notice state, recorded independently on each machine.
+/pi-subagents/last-seen-version.json
 # Per-machine preference store, e.g. the toggle pi-codex-fast-mode wrote
 # before it was uninstalled. Root-anchored: a nested state/ dir is not ours.
 /state/
