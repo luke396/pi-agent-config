@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Bring this config's packages in line with settings.json. Run once on a new
 # machine (Node.js >=22.19 on PATH); .githooks/ runs it after pulls.
-# Sync in Pi with /settings-sync, or from a shell:
-#   node ~/.pi/agent/extensions/settings-sync.ts pull
-# Before other Git rewrites, use /settings-sync prepare (or the same CLI action).
+# Use ordinary Git commands. Pi saves machine fields on session start/end.
+# On a machine without deviceId, after the first ChatGPT login attempt (even if
+# cancelled), exit Pi normally and reopen it before pulling configuration.
 # Keep local settings backed up during first adoption; implementation and MIT
 # notice are in extensions/settings-sync.ts. Machine fields never belong in Git.
 # Idempotent.
@@ -27,7 +27,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
 
-node "$REPO_DIR/extensions/settings-sync.ts" prepare
+node "$REPO_DIR/extensions/settings-sync.ts"
 
 # Git already runs hooks from the worktree root, so this matters for manual runs.
 git config core.hooksPath .githooks

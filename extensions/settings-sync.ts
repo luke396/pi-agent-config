@@ -1,12 +1,13 @@
 /**
- * Repository-owned settings sync.
- * Pi: /settings-sync [pull|prepare] (default: pull).
- * Shell/setup: node extensions/settings-sync.ts prepare|pull (Node >=22.19).
- * Startup installs the Git filter; shutdown saves local fields. No automatic
- * pull, commit, push, or stash. Explicit sync snapshots before a fast-forward pull.
- * Before other Git rewrites, use "prepare". New clones run setup.sh once.
- * Keep existing settings backed up during first adoption. Runtime files live
- * in ignored .git-sync/. Missing/malformed filter inputs retain fail-open behavior.
+ * Keep machine fields local while using ordinary Git.
+ * Pi session start installs the filter and saves fields; session shutdown saves
+ * them again. No sync command, watcher, or automatic pull/commit/push/stash.
+ * New clones run setup.sh once (Node >=22.19). On a machine without deviceId,
+ * the first ChatGPT login attempt can create it mid-session, even if cancelled:
+ * exit Pi normally and reopen it before pulling configuration for the first time.
+ * Arbitrary mid-session edits to these fields are not continuously captured.
+ * Back up existing settings before first adoption. Runtime files live in ignored
+ * .git-sync/. Missing/malformed filter inputs retain fail-open behavior.
  *
  * Adapted from diogovdias/pi-config-sync, commit
  * 81d821bbb6a92df2b52c342fe2e1ff51c560bb66; maintained here without a package dependency.
@@ -135,14 +136,6 @@ async function prepare() {
   }
 }
 
-async function run(action: string) {
-  if (action !== "prepare" && action !== "pull") throw new Error("Usage: settings-sync [pull|prepare]");
-  await prepare();
-  if (action === "prepare") return "Settings filter ready; machine fields saved.";
-  const result = await git(["pull", "--ff-only"]);
-  return result.stdout.trim() || "Configuration is up to date.";
-}
-
 export default function settingsSync(pi: ExtensionAPI) {
   const child = Number(process.env.PI_SUBAGENT_DEPTH ?? "0") > 0;
   pi.on("session_start", async (_event, ctx) => {
@@ -153,22 +146,11 @@ export default function settingsSync(pi: ExtensionAPI) {
   pi.on("session_shutdown", async () => {
     if (!child && ownRepo()) await saveMachineFields();
   });
-  pi.registerCommand("settings-sync", {
-    description: "Pull this configuration repo, preserving machine fields; or prepare filters only",
-    handler: async (args, ctx) => {
-      const action = args.trim() || "pull";
-      await ctx.waitForIdle();
-      try {
-        const result = await run(action);
-        ctx.ui.notify(result + (action === "pull" ? "\nUse /reload to load updated configuration." : ""), "info");
-      } catch (error) { ctx.ui.notify(`settings-sync: ${(error as Error).message}`, "error"); }
-    },
-  });
 }
 
-// Same file is the setup/non-interactive entry point; importing an extension
+// setup.sh uses this same file for initialization. Importing the extension
 // only registers handlers and never runs a Git operation.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  try { console.log(await run(process.argv[2] || "prepare")); }
+  try { await prepare(); }
   catch (error) { console.error((error as Error).message); process.exitCode = 1; }
 }

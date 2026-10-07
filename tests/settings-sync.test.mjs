@@ -48,15 +48,14 @@ function fixture(t) {
   cpSync(path.join(source, "extensions/settings-sync.ts"), path.join(a, "extensions/settings-sync.ts"));
   const save = (dir, settings) => writeFileSync(path.join(dir, "settings.json"), JSON.stringify(settings, null, 2) + "\n");
   const read = dir => JSON.parse(readFileSync(path.join(dir, "settings.json"), "utf8"));
-  const prepare = dir => run(dir, process.execPath, ["extensions/settings-sync.ts", "prepare"]);
-  const pull = dir => run(dir, process.execPath, ["extensions/settings-sync.ts", "pull"]);
+  const prepare = dir => run(dir, process.execPath, ["extensions/settings-sync.ts"]);
   const extension = (dir, body) => JSON.parse(run(dir, process.execPath, ["--input-type=module", "-e", `
     import factory from "./extensions/settings-sync.ts";
     import fs from "node:fs";
-    const events = new Map(), commands = new Map();
-    const messages = [], result = { messages };
-    factory({ on: (name, handler) => events.set(name, handler), registerCommand: (name, command) => commands.set(name, command) });
-    const ctx = { hasUI: true, mode: "tui", waitForIdle: async () => {}, ui: { notify: (message, level) => messages.push({ message, level }) } };
+    const events = new Map();
+    const messages = [], result = { messages, commands: [] };
+    factory({ on: (name, handler) => events.set(name, handler), registerCommand: name => result.commands.push(name) });
+    const ctx = { hasUI: true, mode: "tui", ui: { notify: (message, level) => messages.push({ message, level }) } };
     ${body}
     console.log(JSON.stringify(result));
   `]));
@@ -66,7 +65,7 @@ function fixture(t) {
     git(dir, "commit", "-m", message);
   };
   save(a, initial);
-  return { root, a, env, run, git, save, read, prepare, pull, extension, setup, commit };
+  return { root, a, env, run, git, save, read, prepare, extension, setup, commit };
 }
 
 function twoMachines(t) {
@@ -116,7 +115,7 @@ test("setup preserves live and staged settings; commits contain only portable va
   assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });
 
-test("two machines sync shared preferences while keeping freshly changed local values", t => {
+test("ordinary Git pull preserves each machine's fields after Pi session start", t => {
   const f = twoMachines(t);
   const remoteSettings = {
     ...f.read(f.b), theme: "light", packages: ["npm:example", "git:github.com/example/skills"],
@@ -124,8 +123,10 @@ test("two machines sync shared preferences while keeping freshly changed local v
   f.save(f.b, remoteSettings);
   f.commit(f.b, "Change portable preferences");
   f.git(f.b, "push");
+  // Local state already present when a new Pi session starts.
   f.save(f.a, { ...f.read(f.a), deviceId: "device-a-new-login", lastChangelogVersion: "1.0.6" });
-  f.pull(f.a);
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
+  f.git(f.a, "pull", "--ff-only");
   assert.deepEqual(f.read(f.a), {
     ...remoteSettings, deviceId: "device-a-new-login", lastChangelogVersion: "1.0.6",
   });
@@ -141,7 +142,7 @@ test("checkout restores saved machine fields and smudge prefers them to incoming
   f.setup(f.a);
   f.commit(f.a, "Initial");
   f.save(f.a, { ...initial, theme: "temporary", deviceId: "new-device-a", lastChangelogVersion: "1.0.7" });
-  f.prepare(f.a);
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
   f.git(f.a, "checkout", "--", "settings.json");
   assert.deepEqual(f.read(f.a), {
     ...initial, deviceId: "new-device-a", lastChangelogVersion: "1.0.7",
@@ -154,7 +155,7 @@ test("checkout restores saved machine fields and smudge prefers them to incoming
   });
 });
 
-test("sync refuses conflicting shared edits without committing, stashing or overwriting them", t => {
+test("ordinary Git pull refuses conflicting shared edits without committing, stashing or overwriting them", t => {
   const f = twoMachines(t);
   f.save(f.b, { ...f.read(f.b), theme: "remote-change" });
   f.commit(f.b, "Remote change");
@@ -162,7 +163,7 @@ test("sync refuses conflicting shared edits without committing, stashing or over
   f.save(f.a, { ...f.read(f.a), theme: "uncommitted-local-change", lastChangelogVersion: "1.0.8" });
   const before = readFileSync(path.join(f.a, "settings.json"), "utf8");
   const head = f.git(f.a, "rev-parse", "HEAD");
-  assert.throws(() => f.pull(f.a), /local changes.*overwritten/s);
+  assert.throws(() => f.git(f.a, "pull", "--ff-only"), /local changes.*overwritten/s);
   assert.equal(readFileSync(path.join(f.a, "settings.json"), "utf8"), before);
   assert.equal(f.git(f.a, "rev-parse", "HEAD"), head);
   assert.equal(f.git(f.a, "diff", "--cached"), "");
@@ -196,13 +197,14 @@ test("upstream malformed-input and missing-sidecar pass-through behavior is pres
   assert.equal(f.run(f.a, process.execPath, [".git-sync/filter.mjs", "smudge"], portable), portable);
 });
 
-test("equal-size fresh machine values survive a pull", t => {
+test("equal-size machine values saved at session start survive an ordinary Git pull", t => {
   const f = twoMachines(t);
   f.save(f.b, { ...f.read(f.b), theme: "light" });
   f.commit(f.b, "Shared change");
   f.git(f.b, "push");
   f.save(f.a, { ...f.read(f.a), deviceId: "device-c", lastChangelogVersion: "1.0.9" });
-  f.pull(f.a);
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
+  f.git(f.a, "pull", "--ff-only");
   assert.equal(f.read(f.a).theme, "light");
   assert.equal(f.read(f.a).deviceId, "device-c");
   assert.equal(f.read(f.a).lastChangelogVersion, "1.0.9");
@@ -273,7 +275,7 @@ test("upgrade from the retired tracked filter preserves local values", t => {
   f.commit(b, "Consolidate into extension");
   f.git(b, "push");
   f.save(f.a, { ...f.read(f.a), deviceId: "device-a-new-login", lastChangelogVersion: "1.0.10" });
-  f.prepare(f.a);
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
   for (const action of ["clean", "smudge"]) {
     const key = "filter.pi-config-sync." + action;
     const old = f.git(f.a, "config", "--get", key).trim()
@@ -290,7 +292,7 @@ test("upgrade from the retired tracked filter preserves local values", t => {
   assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });
 
-test("extension factory is inert; lifecycle installs and snapshots without syncing", t => {
+test("extension has no commands; factory is inert and lifecycle saves locally", t => {
   const f = fixture(t);
   const result = f.extension(f.a, `
     result.inert = !fs.existsSync(".git-sync");
@@ -301,6 +303,7 @@ test("extension factory is inert; lifecycle installs and snapshots without synci
     await events.get("session_shutdown")({reason:"exit"}, ctx);
   `);
   assert.equal(result.inert, true);
+  assert.deepEqual(result.commands, []);
   assert.deepEqual(JSON.parse(readFileSync(path.join(f.a, ".git-sync/settings.machine.json"), "utf8")), {
     deviceId: initial.deviceId, lastChangelogVersion: "1.0.10",
   });
@@ -320,22 +323,28 @@ test("subagent lifecycle leaves the shared repository alone", t => {
   assert.throws(() => f.git(f.a, "config", "--get", "filter.pi-config-sync.clean"));
 });
 
-test("extension command pulls explicitly, reports errors, and never exposes push", t => {
+test("shutdown saves a newly created device ID before an ordinary Git pull", t => {
   const f = twoMachines(t);
-  f.save(f.b, { ...f.read(f.b), theme: "from-command" });
+  f.save(f.b, { ...f.read(f.b), theme: "remote-after-first-login" });
   f.commit(f.b, "Remote settings");
   f.git(f.b, "push");
-  f.save(f.a, { ...f.read(f.a), lastChangelogVersion: "1.0.10" });
-  const result = f.extension(f.a, `await commands.get("settings-sync").handler("", ctx);`);
-  assert.equal(f.read(f.a).theme, "from-command");
-  assert.equal(f.read(f.a).deviceId, "device-a");
-  assert.equal(f.read(f.a).lastChangelogVersion, "1.0.10");
-  assert.equal(result.messages.at(-1).level, "info");
-  const head = f.git(f.a, "rev-parse", "HEAD");
-  const invalid = f.extension(f.a, `await commands.get("settings-sync").handler("push", ctx);`);
-  assert.equal(invalid.messages.at(-1).level, "error");
-  assert.match(invalid.messages.at(-1).message, /Usage/);
-  assert.equal(f.git(f.a, "rev-parse", "HEAD"), head);
+  const freshSettings = f.read(f.a);
+  delete freshSettings.deviceId;
+  f.save(f.a, freshSettings);
+  f.extension(f.a, `
+    await events.get("session_start")({}, ctx);
+    // Simulate Pi's first-login write; no real OAuth is performed.
+    const settings = JSON.parse(fs.readFileSync("settings.json", "utf8"));
+    settings.deviceId = "created-at-first-login";
+    fs.writeFileSync("settings.json", JSON.stringify(settings));
+    await events.get("session_shutdown")({reason:"exit"}, ctx);
+  `);
+  // The agreed first-use workflow: finish the Pi session before pulling.
+  f.git(f.a, "pull", "--ff-only");
+  assert.equal(f.read(f.a).theme, "remote-after-first-login");
+  assert.equal(f.read(f.a).deviceId, "created-at-first-login");
+  assert.equal(f.read(f.a).lastChangelogVersion, "1.0.4");
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });
 
 test("a copied extension never configures a parent repository", t => {
