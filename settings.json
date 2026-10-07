@@ -43,5 +43,15 @@
     "npm:pi-vim",
     "npm:@mrclrchtr/supi-settings",
     "npm:@mrclrchtr/supi-skills"
-  ]
+  ],
+  "compaction": {
+    "modelOverrides": {
+      "openai/gpt-6-astra": {
+        "reserveTokens": 87200
+      },
+      "openai/gpt-6.1-sol": {
+        "reserveTokens": 87200
+      }
+    }
+  }
 }
