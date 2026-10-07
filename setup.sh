@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Bring this config's packages in line with settings.json. Run once on a new
-# machine; after that .githooks/ runs it automatically after every pull.
+# machine (Node.js on PATH required); after that .githooks/ runs it after pulls.
+# Use ./sync.sh to pull: it saves machine-local settings before Git rewrites them.
+# For manual checkout/rebase/reset/stash, first run:
+#   node scripts/prepare-settings-sync.mjs
+# Details and first-adoption precautions: scripts/settings-sync/README.md.
 # Idempotent.
 #
 # Adopting an existing config: tracked files come from the repo, while the
@@ -21,6 +25,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_DIR"
+
+node "$REPO_DIR/scripts/prepare-settings-sync.mjs"
 
 # Git already runs hooks from the worktree root, so this matters for manual runs.
 git config core.hooksPath .githooks

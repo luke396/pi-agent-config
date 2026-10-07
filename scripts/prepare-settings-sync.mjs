@@ -1,0 +1,42 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { filterSource, refreshMachineSidecar } from "./settings-sync/filters.mjs";
+
+const repo = fileURLToPath(new URL("../", import.meta.url));
+const keys = ["deviceId", "lastChangelogVersion"];
+const script = path.join(repo, ".git-sync", "filter.mjs");
+
+await fs.mkdir(path.dirname(script), { recursive: true });
+await fs.writeFile(script, filterSource(keys));
+await refreshMachineSidecar(repo, { machineLocalSettings: keys });
+
+// Same filter commands as upstream, using Node on PATH so a mise Node upgrade
+// does not leave Git pointing at a removed version-specific executable.
+const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
+for (const [name, value] of Object.entries({
+  "filter.pi-config-sync.clean": `node ${quote(script)} clean`,
+  "filter.pi-config-sync.smudge": `node ${quote(script)} smudge`,
+  "filter.pi-config-sync.required": "false",
+})) {
+  execFileSync("git", ["-C", repo, "config", "--local", name, value]);
+}
+
+// Git's stat-size shortcut can report a change even when clean(input) is
+// identical to the index blob. Clear only that cached stat, never stage the
+// live file. Leave unmerged, skip-worktree, and assume-unchanged entries alone.
+const entry = execFileSync("git", ["-C", repo, "ls-files", "-v", "--stage", "--", "settings.json"], {
+  encoding: "utf8",
+}).match(/^H ([0-7]+) ([0-9a-f]+) 0\tsettings\.json\n$/);
+if (entry) {
+  const diff = spawnSync("git", ["-C", repo, "diff", "--quiet", "--no-ext-diff", "--", "settings.json"], {
+    encoding: "utf8",
+  });
+  if (diff.error) throw diff.error;
+  if (diff.status === 0) {
+    execFileSync("git", ["-C", repo, "update-index", "--cacheinfo", `${entry[1]},${entry[2]},settings.json`]);
+  } else if (diff.status !== 1) {
+    throw new Error(diff.stderr || "Could not compare settings.json with the index");
+  }
+}

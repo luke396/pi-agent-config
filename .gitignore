@@ -21,6 +21,8 @@ trust.json
 # --- Sessions and runtime state (large, churning, regenerable) ---
 sessions/
 run-history.jsonl
+# pi-config-sync clean/smudge filter and this machine's settings fields.
+/.git-sync/
 # Per-machine preference store, e.g. the toggle pi-codex-fast-mode wrote
 # before it was uninstalled. Root-anchored: a nested state/ dir is not ours.
 /state/
