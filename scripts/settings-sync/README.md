@@ -4,15 +4,17 @@ This is our locally maintained implementation, not a dependency on or an
 installation of the upstream package. The filtering and sidecar code was copied from [pi-config-sync v0.3.0](https://github.com/diogovdias/pi-config-sync/blob/81d821bbb6a92df2b52c342fe2e1ff51c560bb66/extensions/git-sync.ts),
 MIT, copyright 2026 Diogo Dias. The license is included alongside this file.
 
-Only `filterSource`, `refreshMachineSidecar`, and their small helpers are
-extracted. TypeScript annotations were removed, `filterSource` is exported,
-and the caller supplies the repository directory. The filter's behavior,
-including pass-through on malformed input or a missing sidecar, is unchanged.
+The copied clean/smudge program is tracked directly as `filter.mjs`; it is
+not generated into the machine-state directory. `MACHINE_KEYS` is the shared,
+fixed policy for the filter and sidecar refresh. The filtering and sidecar
+behavior, including pass-through on malformed input or a missing sidecar,
+is unchanged.
 No upstream automatic commit, push, extension, or ignore-policy code is loaded.
 
-Our adapter (`scripts/prepare-settings-sync.mjs`) selects `deviceId` and
-`lastChangelogVersion`, saves them in ignored `.git-sync/settings.machine.json`,
-and registers the generated clean/smudge filter. It does not stage file content.
+Our fixed policy keeps `deviceId` and `lastChangelogVersion` local. The adapter
+(`scripts/prepare-settings-sync.mjs`) saves them in ignored
+`.git-sync/settings.machine.json` and registers the tracked clean/smudge program.
+It does not stage file content.
 If only filtered fields changed the file size, it clears Git's stale size cache
 for the same index blob; genuine shared edits and staged content are preserved.
 

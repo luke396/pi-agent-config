@@ -135,7 +135,7 @@ test("checkout restores saved machine fields and smudge prefers them to incoming
   });
 
   const incoming = JSON.stringify({ theme: "remote", deviceId: "foreign", lastChangelogVersion: "old" });
-  const restored = JSON.parse(f.run(f.a, process.execPath, [".git-sync/filter.mjs", "smudge"], incoming));
+  const restored = JSON.parse(f.run(f.a, process.execPath, ["scripts/settings-sync/filter.mjs", "smudge"], incoming));
   assert.deepEqual(restored, {
     theme: "remote", deviceId: "new-device-a", lastChangelogVersion: "1.0.7",
   });
@@ -176,9 +176,91 @@ test("upstream malformed-input and missing-sidecar pass-through behavior is pres
   f.prepare(f.a);
   const raw = "{ malformed settings\n";
   for (const mode of ["clean", "smudge"]) {
-    assert.equal(f.run(f.a, process.execPath, [".git-sync/filter.mjs", mode], raw), raw);
+    assert.equal(f.run(f.a, process.execPath, ["scripts/settings-sync/filter.mjs", mode], raw), raw);
   }
   rmSync(path.join(f.a, ".git-sync/settings.machine.json"));
   const portable = '{"theme":"light"}\n';
-  assert.equal(f.run(f.a, process.execPath, [".git-sync/filter.mjs", "smudge"], portable), portable);
+  assert.equal(f.run(f.a, process.execPath, ["scripts/settings-sync/filter.mjs", "smudge"], portable), portable);
+});
+
+test("equal-size fresh machine values survive a pull", t => {
+  const f = twoMachines(t);
+  f.save(f.b, { ...f.read(f.b), theme: "light" });
+  f.commit(f.b, "Shared change");
+  f.git(f.b, "push");
+  f.save(f.a, { ...f.read(f.a), deviceId: "device-c", lastChangelogVersion: "1.0.9" });
+  f.run(f.a, "bash", ["sync.sh"]);
+  assert.equal(f.read(f.a).theme, "light");
+  assert.equal(f.read(f.a).deviceId, "device-c");
+  assert.equal(f.read(f.a).lastChangelogVersion, "1.0.9");
+});
+
+test("preparation preserves intent-to-add", t => {
+  const f = fixture(t);
+  f.prepare(f.a);
+  f.git(f.a, "add", "--intent-to-add", "settings.json");
+  const staged = f.git(f.a, "diff", "--cached");
+  f.prepare(f.a);
+  assert.equal(f.git(f.a, "diff", "--cached"), staged);
+});
+
+for (const flag of ["--assume-unchanged", "--skip-worktree"]) {
+  test("preparation preserves " + flag, t => {
+    const f = fixture(t);
+    f.setup(f.a);
+    f.commit(f.a, "Initial");
+    f.git(f.a, "update-index", flag, "settings.json");
+    f.save(f.a, { ...initial, theme: "local-flagged-edit" });
+    const entry = f.git(f.a, "ls-files", "-v", "--stage", "--", "settings.json");
+    f.prepare(f.a);
+    assert.equal(f.git(f.a, "ls-files", "-v", "--stage", "--", "settings.json"), entry);
+    assert.equal(f.read(f.a).theme, "local-flagged-edit");
+  });
+}
+
+test("preparation preserves unresolved merge stages and worktree text", t => {
+  const f = fixture(t);
+  f.setup(f.a);
+  f.commit(f.a, "Initial");
+  f.git(f.a, "checkout", "-b", "other");
+  f.save(f.a, { ...initial, theme: "other" });
+  f.commit(f.a, "Other theme");
+  f.git(f.a, "checkout", "main");
+  f.save(f.a, { ...initial, theme: "main" });
+  f.commit(f.a, "Main theme");
+  assert.throws(() => f.git(f.a, "merge", "other"));
+  const entries = f.git(f.a, "ls-files", "--unmerged");
+  assert.notEqual(entries, "");
+  const contents = readFileSync(path.join(f.a, "settings.json"), "utf8");
+  f.prepare(f.a);
+  assert.equal(f.git(f.a, "ls-files", "--unmerged"), entries);
+  assert.equal(readFileSync(path.join(f.a, "settings.json"), "utf8"), contents);
+});
+
+test("upgrade from generated to tracked filter preserves local values", t => {
+  const f = fixture(t);
+  rmSync(path.join(f.a, "scripts"), { recursive: true });
+  // Frozen b9869ab scripts: this migration test needs no repository history.
+  cpSync(path.join(source, "tests/fixtures/settings-sync-generated/scripts"), path.join(f.a, "scripts"), { recursive: true });
+  f.setup(f.a);
+  f.commit(f.a, "Old generated-filter setup");
+  const remote = path.join(f.root, "remote.git");
+  f.git(f.root, "init", "--bare", "-b", "main", remote);
+  f.git(f.a, "remote", "add", "origin", remote);
+  f.git(f.a, "push", "-u", "origin", "main");
+  const b = path.join(f.root, "machine b");
+  f.git(f.root, "clone", remote, b);
+  rmSync(path.join(b, "scripts"), { recursive: true });
+  cpSync(path.join(source, "scripts"), path.join(b, "scripts"), { recursive: true });
+  f.save(b, { ...f.read(b), theme: "upgraded", deviceId: "device-b", lastChangelogVersion: "1.0.3" });
+  f.setup(b);
+  f.commit(b, "Use tracked filter program");
+  f.git(b, "push");
+  f.save(f.a, { ...f.read(f.a), deviceId: "device-a-new-login", lastChangelogVersion: "1.0.10" });
+  f.run(f.a, "bash", ["sync.sh"]);
+  assert.equal(f.read(f.a).theme, "upgraded");
+  assert.equal(f.read(f.a).deviceId, "device-a-new-login");
+  assert.equal(f.read(f.a).lastChangelogVersion, "1.0.10");
+  assert.match(f.git(f.a, "config", "--get", "filter.pi-config-sync.smudge"), /scripts.settings-sync.filter.mjs/);
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });

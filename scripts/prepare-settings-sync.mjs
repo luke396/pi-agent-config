@@ -1,16 +1,12 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { filterSource, refreshMachineSidecar } from "./settings-sync/filters.mjs";
+import { refreshMachineSidecar } from "./settings-sync/filters.mjs";
 
 const repo = fileURLToPath(new URL("../", import.meta.url));
-const keys = ["deviceId", "lastChangelogVersion"];
-const script = path.join(repo, ".git-sync", "filter.mjs");
+const script = path.join(repo, "scripts/settings-sync/filter.mjs");
 
-await fs.mkdir(path.dirname(script), { recursive: true });
-await fs.writeFile(script, filterSource(keys));
-await refreshMachineSidecar(repo, { machineLocalSettings: keys });
+await refreshMachineSidecar(repo);
 
 // Same filter commands as upstream, using Node on PATH so a mise Node upgrade
 // does not leave Git pointing at a removed version-specific executable.
@@ -33,10 +29,9 @@ if (entry) {
   const diff = spawnSync("git", ["-C", repo, "diff", "--quiet", "--no-ext-diff", "--", "settings.json"], {
     encoding: "utf8",
   });
-  if (diff.error) throw diff.error;
   if (diff.status === 0) {
     execFileSync("git", ["-C", repo, "update-index", "--cacheinfo", `${entry[1]},${entry[2]},settings.json`]);
   } else if (diff.status !== 1) {
-    throw new Error(diff.stderr || "Could not compare settings.json with the index");
+    throw diff.error ?? new Error(diff.stderr || "Could not compare settings.json with the index");
   }
 }
