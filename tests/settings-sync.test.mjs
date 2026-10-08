@@ -181,6 +181,7 @@ test("per-model compaction overrides stay local while shared compaction settings
   f.git(f.a, "checkout", "HEAD~1", "--", "settings.json");
   f.git(f.a, "checkout", "HEAD", "--", "settings.json");
   assert.deepEqual(f.read(f.a), onlyLocal);
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });
 
 test("ordinary Git pull refuses conflicting shared edits without committing, stashing or overwriting them", t => {

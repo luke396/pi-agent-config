@@ -45,9 +45,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const exec = promisify(execFile);
 const repo = fileURLToPath(new URL("../", import.meta.url));
-// Settings paths that stay on each machine. compaction.modelOverrides is keyed
-// by provider/model IDs, and providers come from the untracked models.json.
-const paths = [["deviceId"], ["lastChangelogVersion"], ["compaction", "modelOverrides"]];
+const keys = ["deviceId", "lastChangelogVersion"];
 const settingsPath = path.join(repo, "settings.json");
 const statePath = path.join(repo, ".git-sync", "settings.machine.json");
 const filterPath = path.join(repo, ".git-sync", "filter.mjs");
@@ -60,30 +58,7 @@ const git = (args: string[]) => exec("git", args, {
 
 // Git calls this standalone program even when Pi is not running.
 const filter = `import fs from "node:fs";
-const paths = ${JSON.stringify(paths)};
-const isObject = value => !!value && typeof value === "object" && !Array.isArray(value);
-const get = (value, path) => path.reduce((node, key) => isObject(node) && Object.hasOwn(node, key) ? node[key] : undefined, value);
-function set(value, path, leaf) {
-  let node = value;
-  for (const key of path.slice(0, -1)) {
-    if (!isObject(node[key])) node[key] = {};
-    node = node[key];
-  }
-  node[path.at(-1)] = leaf;
-}
-// Also drops parents that held only the removed field, so the tracked file
-// carries no empty placeholder.
-function remove(value, path) {
-  const parents = [value];
-  for (const key of path.slice(0, -1)) {
-    const next = parents.at(-1)[key];
-    if (!isObject(next)) return;
-    parents.push(next);
-  }
-  if (!Object.hasOwn(parents.at(-1), path.at(-1))) return;
-  delete parents.at(-1)[path.at(-1)];
-  for (let i = parents.length - 1; i > 0 && Object.keys(parents[i]).length === 0; i--) delete parents[i - 1][path[i - 1]];
-}
+const keys = ${JSON.stringify(keys)};
 const chunks = [];
 for await (const chunk of process.stdin) chunks.push(chunk);
 const raw = Buffer.concat(chunks);
@@ -91,16 +66,20 @@ try {
   const value = JSON.parse(raw.toString("utf8"));
   if (!value || Array.isArray(value) || typeof value !== "object") throw new Error("not object");
   if (process.argv[2] === "clean") {
-    for (const path of paths) remove(value, path);
+    for (const key of keys) delete value[key];
+    // Override keys name providers from the untracked models.json.
+    const compaction = value.compaction;
+    if (compaction && typeof compaction === "object" && Object.hasOwn(compaction, "modelOverrides")) {
+      delete compaction.modelOverrides;
+      if (Object.keys(compaction).length === 0) delete value.compaction;
+    }
     process.stdout.write(JSON.stringify(value, null, 2) + "\\n");
   } else if (process.argv[2] === "smudge") {
     const local = JSON.parse(fs.readFileSync(new URL("settings.machine.json", import.meta.url), "utf8"));
     if (!local || Array.isArray(local) || typeof local !== "object") throw new Error("bad sidecar");
-    for (const path of paths) {
-      const leaf = get(local, path);
-      if (leaf !== undefined) set(value, path, leaf);
-    }
-    process.stdout.write(JSON.stringify(value, null, 2) + "\\n");
+    const merged = { ...value, ...Object.fromEntries(keys.filter(key => Object.hasOwn(local, key)).map(key => [key, local[key]])) };
+    if (local.modelOverrides !== undefined) merged.compaction = { ...merged.compaction, modelOverrides: local.modelOverrides };
+    process.stdout.write(JSON.stringify(merged, null, 2) + "\\n");
   } else process.stdout.write(raw);
 } catch { process.stdout.write(raw); }
 `;
@@ -111,29 +90,13 @@ async function writeIfChanged(file: string, content: string) {
   await fs.writeFile(file, content);
 }
 
-// Same path semantics as the filter program above, which must stay standalone.
-type Json = Record<string, unknown>;
-const isObject = (value: unknown): value is Json => !!value && typeof value === "object" && !Array.isArray(value);
-const getPath = (value: unknown, keys: string[]) =>
-  keys.reduce<unknown>((node, key) => isObject(node) && Object.hasOwn(node, key) ? node[key] : undefined, value);
-function setPath(value: Json, keys: string[], leaf: unknown) {
-  let node = value;
-  for (const key of keys.slice(0, -1)) {
-    if (!isObject(node[key])) node[key] = {};
-    node = node[key] as Json;
-  }
-  node[keys.at(-1)!] = leaf;
-}
-
 async function saveMachineFields() {
   try {
     const settings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
-    if (!isObject(settings)) return;
-    const local: Json = {};
-    for (const keys of paths) {
-      const leaf = getPath(settings, keys);
-      if (leaf !== undefined) setPath(local, keys, leaf);
-    }
+    if (!settings || Array.isArray(settings) || typeof settings !== "object") return;
+    const local = Object.fromEntries(keys.filter(key => Object.hasOwn(settings, key)).map(key => [key, settings[key]]));
+    const modelOverrides = settings.compaction?.modelOverrides;
+    if (modelOverrides !== undefined) local.modelOverrides = modelOverrides;
     await writeIfChanged(statePath, JSON.stringify(local, null, 2) + "\n");
   } catch {}
 }
@@ -149,10 +112,11 @@ async function prepare() {
     try {
       const settings = JSON.parse(await fs.readFile(settingsPath, "utf8"));
       const local = JSON.parse(await fs.readFile(statePath, "utf8"));
-      if (isObject(settings) && isObject(local)) {
-        const missing = paths.filter(keys => getPath(settings, keys) === undefined && getPath(local, keys) !== undefined);
+      if (settings && local && !Array.isArray(settings) && !Array.isArray(local) &&
+          typeof settings === "object" && typeof local === "object") {
+        const missing = keys.filter(key => !Object.hasOwn(settings, key) && Object.hasOwn(local, key));
         if (missing.length) {
-          for (const keys of missing) setPath(settings, keys, getPath(local, keys));
+          for (const key of missing) settings[key] = local[key];
           await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n");
         }
       }
