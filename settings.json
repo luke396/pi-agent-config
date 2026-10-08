@@ -51,6 +51,12 @@
       },
       "openai/gpt-6.1-sol": {
         "reserveTokens": 87200
+      },
+      "infrawaves/claude-opus-5.5": {
+        "reserveTokens": 400000
+      },
+      "infrawaves/claude-fable-5.1": {
+        "reserveTokens": 400000
       }
     }
   }
