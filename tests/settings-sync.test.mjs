@@ -155,6 +155,34 @@ test("checkout restores saved machine fields and smudge prefers them to incoming
   });
 });
 
+test("per-model compaction overrides stay local while shared compaction settings sync", t => {
+  const f = twoMachines(t);
+  const aOverrides = { "gateway-a/model": { reserveTokens: 400000 } };
+  const bOverrides = { "gateway-b/model": { reserveTokens: 87200 } };
+  f.save(f.a, { ...f.read(f.a), compaction: { reserveTokens: 87200, modelOverrides: aOverrides } });
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
+  f.save(f.b, { ...f.read(f.b), compaction: { reserveTokens: 50000, modelOverrides: bOverrides } });
+  f.extension(f.b, `await events.get("session_start")({}, ctx);`);
+  f.commit(f.b, "Change shared compaction reserve");
+  f.git(f.b, "push");
+  assert.deepEqual(JSON.parse(f.git(f.b, "show", "HEAD:settings.json")).compaction, { reserveTokens: 50000 });
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
+
+  f.git(f.a, "pull", "--ff-only");
+  assert.deepEqual(f.read(f.a).compaction, { reserveTokens: 50000, modelOverrides: aOverrides });
+  assert.deepEqual(f.read(f.b).compaction, { reserveTokens: 50000, modelOverrides: bOverrides });
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
+
+  // A compaction section holding only local overrides leaves nothing tracked.
+  const onlyLocal = { ...f.read(f.a), compaction: { modelOverrides: aOverrides } };
+  f.save(f.a, onlyLocal);
+  f.commit(f.a, "Drop shared compaction reserve");
+  assert.equal(Object.hasOwn(JSON.parse(f.git(f.a, "show", "HEAD:settings.json")), "compaction"), false);
+  f.git(f.a, "checkout", "HEAD~1", "--", "settings.json");
+  f.git(f.a, "checkout", "HEAD", "--", "settings.json");
+  assert.deepEqual(f.read(f.a), onlyLocal);
+});
+
 test("ordinary Git pull refuses conflicting shared edits without committing, stashing or overwriting them", t => {
   const f = twoMachines(t);
   f.save(f.b, { ...f.read(f.b), theme: "remote-change" });
