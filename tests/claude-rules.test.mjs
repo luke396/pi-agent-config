@@ -93,14 +93,3 @@ test("supi-skills still hides model-disabled skills when project rules exist", a
 	assert.match(prompt, /<name>visible-skill<\/name>/);
 	assert.doesNotMatch(prompt, /<name>hidden-skill<\/name>/);
 });
-
-test("rule files added after session start appear on the next turn", async () => {
-	const session = await load([claudeRules]);
-	writeFileSync(path.join(cwd, ".claude/rules/added-later.md"), "# later\n");
-	try {
-		const { prompt } = await turn(session);
-		assert.match(prompt, /- \.claude\/rules\/added-later\.md/);
-	} finally {
-		rmSync(path.join(cwd, ".claude/rules/added-later.md"));
-	}
-});

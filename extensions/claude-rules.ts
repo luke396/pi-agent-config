@@ -2,8 +2,7 @@
  * Claude Rules Extension
  *
  * Scans the project's .claude/rules/ folder for rule files and lists them
- * in the system prompt on every turn. The agent can then load specific rules
- * when needed.
+ * in the system prompt. The agent can then load specific rules when needed.
  *
  * Best practices for .claude/rules/:
  * - Keep rules focused: Each file should cover one topic (e.g., testing.md, api-design.md)
@@ -47,10 +46,14 @@ function findMarkdownFiles(dir: string, basePath: string = ""): string[] {
 }
 
 export default function claudeRulesExtension(pi: ExtensionAPI) {
-	const findRuleFiles = (cwd: string) => findMarkdownFiles(path.join(cwd, ".claude", "rules"));
+	let ruleFiles: string[] = [];
+	let rulesDir: string = "";
 
+	// Scan for rules on session start
 	pi.on("session_start", async (_event, ctx) => {
-		const ruleFiles = findRuleFiles(ctx.cwd);
+		rulesDir = path.join(ctx.cwd, ".claude", "rules");
+		ruleFiles = findMarkdownFiles(rulesDir);
+
 		if (ruleFiles.length > 0) {
 			ctx.ui.notify(`Found ${ruleFiles.length} rule(s) in .claude/rules/`, "info");
 		}
@@ -58,10 +61,8 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 
 	// List available rules in a structured prompt section. Returning systemPrompt would
 	// force an opaque prompt that later handlers (e.g. supi-skills) cannot restructure.
-	// Pi rebuilds the options each turn, so the section is set (and rules rescanned) every
-	// turn; rules added mid-session appear without /reload.
-	pi.on("before_agent_start", async (event, ctx) => {
-		const ruleFiles = findRuleFiles(ctx.cwd);
+	// Pi rebuilds the options each turn, so the section is set on every turn.
+	pi.on("before_agent_start", async (event) => {
 		if (ruleFiles.length === 0) {
 			return;
 		}
