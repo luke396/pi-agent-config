@@ -60,7 +60,9 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// Append available rules to system prompt
+	// List available rules in a structured prompt section. Returning systemPrompt would
+	// force an opaque prompt that later handlers (e.g. supi-skills) cannot restructure.
+	// Pi rebuilds the options each turn, so the section is set on every turn.
 	pi.on("before_agent_start", async (event) => {
 		if (ruleFiles.length === 0) {
 			return;
@@ -68,19 +70,10 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 
 		const rulesList = ruleFiles.map((f) => `- .claude/rules/${f}`).join("\n");
 
-		return {
-			systemPrompt:
-				event.systemPrompt +
-				`
-
-## Project Rules
-
-The following project rules are available in .claude/rules/:
+		event.systemPromptOptions.sections.project_rules = `The following project rules are available in .claude/rules/:
 
 ${rulesList}
 
-When working on tasks related to these rules, use the read tool to load the relevant rule files for guidance.
-`,
-		};
+When working on tasks related to these rules, use the read tool to load the relevant rule files for guidance.`;
 	});
 }
