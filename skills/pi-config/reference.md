@@ -12,23 +12,23 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   inert by design.
 - **For header, footer or editor regressions after changing TUI packages, check
   the active slot owner and registration order first.**
-- **`pi-open-tui` owns header and footer, `pi-vim` owns the editor.** Expected
-  consequence: open-tui's editor frame, cursor style and thinking peek are inert.
-  A follow-up change made the peek throw rather than stay quiet, so it is off.
-- **`pi-catppuccin-tui` is filtered to its themes** because its extension would
-  otherwise take the footer from open-tui.
+- **`pi-open-tui` is disabled with `extensions: []`.** Pi owns the header and
+  footer; `pi-vim` owns the editor. Keep the installed package and `open-tui.json`
+  for optional re-enabling. When enabled, open-tui's editor frame, cursor style
+  and thinking peek conflict with pi-vim; the peek is deliberately off.
+- **`pi-catppuccin-tui` is filtered to its themes** to preserve Pi's native footer.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
 - `open-tui.json` is read **once** into a module-level variable at startup
   (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
   screen is the only path that takes effect live.
 - **Transcript grouping is owned by `@luan.sh/pi-collapse-transcript`.** It
-  replaced `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse`; keep open-tui's
-  header/footer and pi-vim's editor. This combination was exercised on Pi 1.1.0
-  with restored thinking/codemode history and mouse expansion. Grouping only
+  replaced `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse`. Pi 1.1.0 was
+  checked with pi-vim, restored thinking/codemode history, and mouse expansion
+  both with open-tui and with the native header/footer. Grouping only
   activates in fullscreen; regular mode retains native rows. The bundled
   `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
-  detail rendering, so those changes do not indicate an open-tui regression.
+  detail rendering; disabling open-tui does not remove these changes.
 - **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
   theme.** Matching the Catppuccin desktop today is a choice, not a
   consequence. Omarchy's install setup passes `--activate` to
