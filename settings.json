@@ -39,7 +39,6 @@
     "npm:pi-vim",
     "npm:@mrclrchtr/supi-settings",
     "npm:@mrclrchtr/supi-skills",
-    "npm:@xzzpig/pi-thinking-collapse",
-    "npm:pi-collapse-tools"
+    "npm:@luan.sh/pi-collapse-transcript"
   ]
 }

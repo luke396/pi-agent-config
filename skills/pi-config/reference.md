@@ -22,6 +22,13 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 - `open-tui.json` is read **once** into a module-level variable at startup
   (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
   screen is the only path that takes effect live.
+- **Transcript grouping is owned by `@luan.sh/pi-collapse-transcript`.** It
+  replaced `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse`; keep open-tui's
+  header/footer and pi-vim's editor. This combination was exercised on Pi 1.1.0
+  with restored thinking/codemode history and mouse expansion. Grouping only
+  activates in fullscreen; regular mode retains native rows. The bundled
+  `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
+  detail rendering, so those changes do not indicate an open-tui regression.
 - **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
   theme.** Matching the Catppuccin desktop today is a choice, not a
   consequence. Omarchy's install setup passes `--activate` to
