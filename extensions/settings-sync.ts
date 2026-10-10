@@ -45,7 +45,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const exec = promisify(execFile);
 const repo = fileURLToPath(new URL("../", import.meta.url));
-const keys = ["deviceId", "lastChangelogVersion"];
+const keys = ["deviceId", "lastChangelogVersion", "defaultProvider", "defaultModel"];
 const settingsPath = path.join(repo, "settings.json");
 const statePath = path.join(repo, ".git-sync", "settings.machine.json");
 const filterPath = path.join(repo, ".git-sync", "filter.mjs");

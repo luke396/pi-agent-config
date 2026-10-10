@@ -155,6 +155,47 @@ test("checkout restores saved machine fields and smudge prefers them to incoming
   });
 });
 
+test("model defaults stay local across commits, pulls and checkout while thinking settings sync", t => {
+  const f = twoMachines(t);
+  const aDefaults = { defaultProvider: "gateway-a", defaultModel: "model-a" };
+  const bDefaults = { defaultProvider: "gateway-b", defaultModel: "model-b" };
+  f.save(f.a, { ...f.read(f.a), ...aDefaults });
+  f.extension(f.a, `await events.get("session_start")({}, ctx);`);
+  f.save(f.b, { ...f.read(f.b), ...bDefaults, theme: "light", defaultThinkingLevel: "high" });
+  f.extension(f.b, `await events.get("session_start")({}, ctx);`);
+  f.commit(f.b, "Change shared preferences");
+  f.git(f.b, "push");
+  const shared = JSON.parse(f.git(f.b, "show", "HEAD:settings.json"));
+  assert.equal(Object.hasOwn(shared, "defaultProvider"), false);
+  assert.equal(Object.hasOwn(shared, "defaultModel"), false);
+  assert.equal(shared.defaultThinkingLevel, "high");
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
+
+  f.git(f.a, "pull", "--ff-only");
+  assert.deepEqual(f.read(f.a), {
+    ...f.read(f.b), ...aDefaults, deviceId: "device-a", lastChangelogVersion: "1.0.4",
+  });
+  assert.equal(f.read(f.b).defaultProvider, bDefaults.defaultProvider);
+  assert.equal(f.read(f.b).defaultModel, bDefaults.defaultModel);
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
+
+  // A new default saved during a session survives checkout after shutdown.
+  const next = { ...aDefaults, defaultModel: "model-a-next" };
+  f.save(f.a, { ...f.read(f.a), ...next });
+  f.extension(f.a, `await events.get("session_shutdown")({reason:"exit"}, ctx);`);
+  const saved = f.read(f.a);
+  f.save(f.a, { ...saved, theme: "temporary" });
+  f.git(f.a, "checkout", "--", "settings.json");
+  assert.deepEqual(f.read(f.a), saved);
+  assert.equal(f.git(f.a, "status", "--porcelain"), "");
+
+  // Checking out an older shared default must still prefer this machine's.
+  const restored = JSON.parse(f.run(f.a, process.execPath, [".git-sync/filter.mjs", "smudge"],
+    JSON.stringify({ ...shared, ...bDefaults })));
+  assert.equal(restored.defaultProvider, next.defaultProvider);
+  assert.equal(restored.defaultModel, next.defaultModel);
+});
+
 test("per-model compaction overrides stay local while shared compaction settings sync", t => {
   const f = twoMachines(t);
   const aOverrides = { "gateway-a/model": { reserveTokens: 400000 } };

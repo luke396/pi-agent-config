@@ -22,6 +22,7 @@ trust.json
 sessions/
 run-history.jsonl
 # pi-config-sync clean/smudge filter and this machine's settings fields.
+# Includes defaultProvider/defaultModel: choices depend on local models/auth.
 /.git-sync/
 # pi-subagents upgrade-notice state, recorded independently on each machine.
 /pi-subagents/last-seen-version.json

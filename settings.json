@@ -1,8 +1,6 @@
 {
   "theme": "catppuccin-tui-mocha",
-  "defaultProvider": "openai",
-  "defaultModel": "gpt-6-astra",
-  "defaultThinkingLevel": "medium",
+  "defaultThinkingLevel": "max",
   "defaultTools": [
     "+codemode"
   ],

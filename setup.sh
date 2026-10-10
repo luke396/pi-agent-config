@@ -2,6 +2,8 @@
 # Bring this config's packages in line with settings.json. Run once on a new
 # machine (Node.js >=22.19 on PATH); .githooks/ runs it after pulls.
 # Use ordinary Git commands. Pi saves machine fields on session start/end.
+# Default provider/model are machine-local; save them with /model (Ctrl+S).
+# When upgrading from synced defaults, reselect once after the first pull.
 # On a machine without deviceId, after the first ChatGPT login attempt (even if
 # cancelled), exit Pi normally and reopen it before pulling configuration.
 # Keep local settings backed up during first adoption; implementation and MIT
