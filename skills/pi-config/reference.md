@@ -14,7 +14,8 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   the active slot owner and registration order first.**
 - **`pi-open-tui` and its configuration have been removed.** Keep Pi's native
   header/footer, the current theme, and `pi-vim`'s editor. A metrics extension
-  should add status or a widget without replacing those UI components.
+  should add a native notification, status, or widget without replacing those
+  UI components.
 - **`pi-catppuccin-tui` is filtered to its themes** to preserve Pi's native footer.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
