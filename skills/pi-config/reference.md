@@ -12,34 +12,25 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   inert by design.
 - **For header, footer or editor regressions after changing TUI packages, check
   the active slot owner and registration order first.**
-- **`pi-open-tui` is disabled with `extensions: []`.** Pi owns the header and
-  footer; `pi-vim` owns the editor. Keep the installed package and `open-tui.json`
-  for optional re-enabling. When enabled, open-tui's editor frame, cursor style
-  and thinking peek conflict with pi-vim; the peek is deliberately off.
+- **`pi-open-tui` and its configuration have been removed.** Keep Pi's native
+  header/footer, the current theme, and `pi-vim`'s editor. A metrics extension
+  should add status or a widget without replacing those UI components.
 - **`pi-catppuccin-tui` is filtered to its themes** to preserve Pi's native footer.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
-- `open-tui.json` is read **once** into a module-level variable at startup
-  (`index.ts`), so an external edit needs a pi restart; the `/open-tui` settings
-  screen is the only path that takes effect live.
 - **Transcript grouping is owned by `@luan.sh/pi-collapse-transcript`.** It
   replaced `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse`. Pi 1.1.0 was
   checked with pi-vim, restored thinking/codemode history, and mouse expansion
   both with open-tui and with the native header/footer. Grouping only
   activates in fullscreen; regular mode retains native rows. The bundled
   `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
-  detail rendering; disabling open-tui does not remove these changes.
+  detail rendering; removing open-tui does not remove these changes.
 - **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
   theme.** Matching the Catppuccin desktop today is a choice, not a
   consequence. Omarchy's install setup passes `--activate` to
   `omarchy-theme-set-pi`, selecting `omarchy-system`. Regular theme changes only
   refresh pi's generated theme file; an explicit `--activate` call can also
   change the setting later.
-- **open-tui's `icons.mode` is pinned to `nerd`, not left on `auto`.** `auto`
-  keys off `TERM_PROGRAM`/`LC_TERMINAL`, which Alacritty never sets (and Herdr
-  passes through), so Linux silently fell back to ASCII (`@` `*` `#`) while the
-  Mac showed real glyphs. Every terminal here is already configured with
-  JetBrainsMono Nerd Font, so the pin costs nothing.
 - **`tuiMode` is pinned to `regular`, reversed from a `fullscreen` pin.**
   Fullscreen renders the transcript in the alternate screen, so the pane's
   Herdr scrollback is empty: `herdr pane list` reports

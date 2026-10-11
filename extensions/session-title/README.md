@@ -1,8 +1,8 @@
 # Evolving session titles
 
 Original, dependency-free extension for **Pi 1.0.3**. It only changes the native
-session name (`pi.setSessionName`); pi-open-tui keeps ownership of the header and
-footer, and pi-vim keeps the editor.
+session name (`pi.setSessionName`); Pi keeps its native header and footer, and
+pi-vim keeps the editor.
 
 After a completed interactive conversation, an unnamed session gets a short
 name. Subsequent completed activity can evaluate the current main topic with the

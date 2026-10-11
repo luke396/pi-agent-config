@@ -32,10 +32,6 @@
       ]
     },
     {
-      "source": "npm:pi-open-tui",
-      "extensions": []
-    },
-    {
       "source": "npm:pi-catppuccin-tui",
       "extensions": []
     },

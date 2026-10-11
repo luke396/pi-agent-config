@@ -1,6 +1,6 @@
 ---
 name: pi-config
-description: Changing pi's own configuration in ~/.pi/agent (packages, settings.json, open-tui.json, models.json, extensions, skills, themes). Use when adding, removing, reordering or filtering a pi package, when hooking a UI slot, when changing or pinning a theme, and when an installed package appears to do nothing.
+description: Changing pi's own configuration in ~/.pi/agent (packages, settings.json, models.json, extensions, skills, themes). Use when adding, removing, reordering or filtering a pi package, when hooking a UI slot, when changing or pinning a theme, and when an installed package appears to do nothing.
 ---
 
 # Changing pi's own config
