@@ -12,6 +12,7 @@ function fixture(t: TestContext, mode = "tui", hasUI = mode !== "print" && mode 
 	const ctx = {
 		mode, hasUI,
 		ui: {
+			theme: { fg: (color: string, text: string) => `\x1b[${color === "text" ? 97 : 90}m${text}\x1b[39m` },
 			setStatus(key: string, text: string | undefined) {
 				assert.equal(mode, "tui", "no status UI in non-TUI modes");
 				assert.equal(hasUI, true);
@@ -45,7 +46,9 @@ function fixture(t: TestContext, mode = "tui", hasUI = mode !== "print" && mode 
 		emit("message_end", { message: message(output, stopReason) });
 	const advance = (ms: number) => { now += ms; t.mock.timers.tick(ms); };
 	t.after(() => emit("session_shutdown"));
-	return { emit, delta, start, end, advance, writes, statuses, ctx, text: () => statuses.get("response-metrics") };
+	return { emit, delta, start, end, advance, writes, statuses, ctx,
+		text: () => statuses.get("response-metrics")?.replace(/\x1b\[[0-9;]*m/g, ""),
+	};
 }
 
 test("live TPS keeps the complete output window through a 13-second silence; final usage replaces the estimate", (t) => {
@@ -59,6 +62,7 @@ test("live TPS keeps the complete output window through a 13-second silence; fin
 	assert.equal(f.text(), "TTFT 1.0s · TPS ~7.1 tok/s · 耗时 15.0s");
 	f.end(425);
 	assert.equal(f.text(), "TTFT 1.0s · TPS 30.4 tok/s · 耗时 15.0s");
+	assert.match(f.statuses.get("response-metrics")!, /^\x1b\[97mTTFT /);
 	assert.equal(f.statuses.get("another-extension"), "unchanged");
 });
 

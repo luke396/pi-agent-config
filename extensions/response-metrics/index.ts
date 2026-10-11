@@ -46,8 +46,9 @@ export default function responseMetrics(pi: ExtensionAPI) {
 			: "—";
 		const outcome = final?.stopReason === "aborted" ? " · 已中断"
 			: final?.stopReason === "error" ? " · 错误" : "";
-		// Plain status text lets the native footer own theme, width and layout.
-		ctx.ui.setStatus(STATUS_KEY, `TTFT ${ttft} · TPS ${tps} · 耗时 ${elapsed}${outcome}`);
+		// Keep metrics readable next to the native footer\'s dim usage lines.
+		const text = `TTFT ${ttft} · TPS ${tps} · 耗时 ${elapsed}${outcome}`;
+		ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("text", text));
 	};
 
 	const startTimer = (ctx: ExtensionContext) => {
