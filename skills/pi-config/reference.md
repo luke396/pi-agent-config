@@ -16,10 +16,10 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   header/footer, the current theme, and `pi-vim`'s editor. A metrics extension
   should add a native notification, status, or widget without replacing those
   UI components.
-- **Metrics use the local `extensions/response-metrics` extension.** It replaces
-  `@monotykamary/pi-tps`, whose gap-subtracted TPS was explicitly rejected.
-  Keep long output gaps in the cumulative time window; this is a small daily
-  statistics display, not a benchmark suite.
+- **Metrics use `@arhen/pi-core-tps-stats`.** Post-response updates and a rolling
+  median are accepted in exchange for not maintaining a custom statistics
+  extension. The local `response-metrics` and `@monotykamary/pi-tps` were removed;
+  keep the native footer, current theme, and pi-vim.
 - **`pi-catppuccin-tui` is filtered to its themes** to preserve Pi's native footer.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
