@@ -46,7 +46,7 @@ export default function responseMetrics(pi: ExtensionAPI) {
 			: "—";
 		const outcome = final?.stopReason === "aborted" ? " · 已中断"
 			: final?.stopReason === "error" ? " · 错误" : "";
-		// Keep metrics readable next to the native footer\'s dim usage lines.
+		// Keep metrics readable next to the dim native usage lines.
 		const text = `TTFT ${ttft} · TPS ${tps} · 耗时 ${elapsed}${outcome}`;
 		ctx.ui.setStatus(STATUS_KEY, ctx.ui.theme.fg("text", text));
 	};
