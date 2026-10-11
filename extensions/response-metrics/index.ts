@@ -91,13 +91,6 @@ export default function responseMetrics(pi: ExtensionAPI) {
 		current = undefined;
 	});
 
-	// A normal assistant message_end already froze the display before tools run.
-	const endRun = (event: unknown, ctx: ExtensionContext) => {
-		if (current) clear(event, ctx);
-	};
-	pi.on("turn_end", endRun);
-	pi.on("agent_end", endRun);
-
 	pi.on("session_start", clear);
 	pi.on("session_tree", clear);
 	pi.on("model_select", clear);

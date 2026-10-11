@@ -4,6 +4,12 @@ import responseMetrics from "../extensions/response-metrics/index.ts";
 
 function fixture(t: TestContext, mode = "tui", hasUI = mode !== "print" && mode !== "json") {
 	t.mock.timers.enable({ apis: ["setInterval"] });
+	const created = t.mock.method(globalThis, "setInterval");
+	const cleared = t.mock.method(globalThis, "clearInterval");
+	const activeTimerCount = () => {
+		const released = new Set(cleared.mock.calls.map(call => call.arguments[0]));
+		return created.mock.calls.filter(call => !released.has(call.result)).length;
+	};
 	let now = 1_000;
 	t.mock.method(performance, "now", () => now);
 	const handlers = new Map<string, ((event: any, ctx: any) => unknown)[]>();
@@ -46,7 +52,7 @@ function fixture(t: TestContext, mode = "tui", hasUI = mode !== "print" && mode 
 		emit("message_end", { message: message(output, stopReason) });
 	const advance = (ms: number) => { now += ms; t.mock.timers.tick(ms); };
 	t.after(() => emit("session_shutdown"));
-	return { emit, delta, start, end, advance, writes, statuses, ctx,
+	return { emit, delta, start, end, advance, writes, statuses, ctx, activeTimerCount,
 		text: () => statuses.get("response-metrics")?.replace(/\x1b\[[0-9;]*m/g, ""),
 	};
 }
@@ -56,11 +62,13 @@ test("live TPS keeps the complete output window through a 13-second silence; fin
 	f.start();
 	f.advance(1_000);
 	f.delta("x".repeat(400)); // 100 estimated tokens.
+	assert.equal(f.activeTimerCount(), 1);
 	f.advance(1_000);
 	assert.equal(f.text(), "TTFT 1.0s · TPS ~100.0 tok/s · 耗时 2.0s");
 	f.advance(13_000);
 	assert.equal(f.text(), "TTFT 1.0s · TPS ~7.1 tok/s · 耗时 15.0s");
 	f.end(425);
+	assert.equal(f.activeTimerCount(), 0, "message_end releases the interval, not just its UI updates");
 	assert.equal(f.text(), "TTFT 1.0s · TPS 30.4 tok/s · 耗时 15.0s");
 	assert.match(f.statuses.get("response-metrics")!, /^\x1b\[97mTTFT /);
 	assert.equal(f.statuses.get("another-extension"), "unchanged");
@@ -130,6 +138,7 @@ test("message end freezes the sample before tools; the next response starts inde
 	f.delta("data");
 	f.advance(2_000);
 	f.end(100);
+	assert.equal(f.activeTimerCount(), 0);
 	const frozen = f.text();
 	const writes = f.writes.length;
 	f.emit("before_provider_request", { payload: { model: "nested-tool-request" } });
@@ -141,6 +150,7 @@ test("message end freezes the sample before tools; the next response starts inde
 	assert.equal(f.text(), frozen);
 	assert.equal(f.writes.length, writes);
 	f.start();
+	assert.equal(f.activeTimerCount(), 1);
 	assert.equal(f.text(), "TTFT … · TPS — · 耗时 0.0s");
 	f.advance(500);
 	f.delta("next");
@@ -159,6 +169,7 @@ test("repeated request hooks reset the attempt and preserve the payload", (t) =>
 	f.advance(1_000);
 	const payload = Object.freeze({ model: "fixture", temperature: 0.7 });
 	assert.deepEqual(f.emit("before_provider_request", { payload }), [undefined]);
+	assert.equal(f.activeTimerCount(), 1, "request retries reuse one live interval");
 	assert.deepEqual(payload, { model: "fixture", temperature: 0.7 });
 	assert.equal(f.text(), "TTFT … · TPS — · 耗时 0.0s");
 	f.advance(1_000);
@@ -234,6 +245,9 @@ for (const [reason, label] of [["aborted", "已中断"], ["error", "错误"]]) {
 		f.delta("data");
 		f.advance(1_000);
 		f.end(0, reason);
+		assert.equal(f.activeTimerCount(), 0);
+		f.emit("turn_end");
+		f.emit("agent_end");
 		assert.match(f.text()!, new RegExp(`TPS ~1.0 tok/s.*${label}$`));
 		const frozen = f.text(), writes = f.writes.length;
 		f.advance(30_000);
@@ -242,13 +256,30 @@ for (const [reason, label] of [["aborted", "已中断"], ["error", "错误"]]) {
 	});
 }
 
-for (const event of ["session_start", "session_tree", "model_select", "session_shutdown", "turn_end", "agent_end"]) {
+test("Pi request-setup failure emits message_end before turn_end and agent_end", (t) => {
+	const f = fixture(t);
+	f.emit("turn_start");
+	const message = { role: "assistant", content: [], usage: { output: 0 }, stopReason: "error" };
+	// Pi 1.0.4 Agent.handleRunFailure also emits this sequence before any request hook.
+	f.emit("message_start", { message });
+	assert.equal(f.activeTimerCount(), 1);
+	f.emit("message_end", { message });
+	assert.equal(f.activeTimerCount(), 0);
+	f.emit("turn_end", { message, toolResults: [] });
+	f.emit("agent_end", { messages: [message] });
+	f.advance(30_000);
+	assert.equal(f.text(), "TTFT — · TPS — · 耗时 — · 错误");
+});
+
+for (const event of ["session_start", "session_tree", "model_select", "session_shutdown"]) {
 	test(`${event} cleans up an unfinished response`, (t) => {
 		const f = fixture(t);
 		f.start();
 		f.delta("data");
 		f.advance(1_000);
+		assert.equal(f.activeTimerCount(), 1);
 		f.emit(event);
+		assert.equal(f.activeTimerCount(), 0);
 		assert.equal(f.text(), undefined);
 		const writes = f.writes.length;
 		f.advance(30_000);
@@ -266,6 +297,7 @@ for (const [mode, hasUI] of [["rpc", true], ["json", false], ["print", false], [
 		f.end(100);
 		f.emit("agent_end");
 		f.emit("session_shutdown");
+		assert.equal(f.activeTimerCount(), 0);
 		assert.equal(f.writes.length, 0);
 	});
 }

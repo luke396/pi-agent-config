@@ -33,10 +33,11 @@ another boundary. Without a nonempty delta or positive output interval, TPS is
 unavailable. Cancelled and failed messages are labelled. No partial-message
 content is modified.
 
-Only TUI sessions collect/display metrics. The timer stops at message/run end,
-session changes, model selection, and shutdown. The last result is kept in the
-status line until the next response or reset. There are no commands, history
-entries, files written, or extra model requests.
+Only TUI sessions collect/display metrics. The timer stops at assistant
+`message_end` (including error/abort), session changes, model selection, and
+shutdown. The last result is kept in the status line until the next response
+or reset. There are no commands, history entries, files written, or extra model
+requests.
 
 ## Verification
 
