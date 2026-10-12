@@ -83,7 +83,7 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 	});
 
 	// List available rules in a structured prompt section. Returning systemPrompt would
-	// force an opaque prompt that later handlers (e.g. supi-skills) cannot restructure.
+	// force an opaque prompt that later handlers (e.g. manual-only-skills) cannot restructure.
 	// Pi rebuilds the options each turn, so the section is set on every turn.
 	pi.on("before_agent_start", async (event) => {
 		if (ruleFiles.length === 0) {

@@ -15,6 +15,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Visual explanations | [show-me](skills/show-me/SKILL.md), invoked explicitly and adapted from HumanLayer. |
 | Session naming | [session-title](extensions/session-title/README.md): evolving titles with manual ownership and bounded requests. |
 | Project rules | [claude-rules.ts](extensions/claude-rules.ts): advertise `.claude/rules/**/*.md` for selective loading. |
+| Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab, paired with [keybindings.json](keybindings.json). |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 
@@ -84,8 +85,8 @@ node --test tests/settings-sync.test.mjs tests/*.test.ts
 ```
 
 The integration test additionally needs an npm-installed Pi on `PATH` exposing
-`dist/core` and `@mrclrchtr/supi-skills` under this checkout's `npm/`. The standalone
-Pi distribution does not supply those importable modules.
+`dist/core`. The standalone Pi distribution does not supply those importable
+modules.
 
 ```sh
 node --test tests/claude-rules.test.mjs

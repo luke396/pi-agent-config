@@ -1,7 +1,6 @@
-// Runs claude-rules and the installed supi-skills through Pi's real extension loader,
-// runner and prompt builder, in codemode-only shape (read/bash selected but hidden).
-// Prerequisites: an npm-installed `pi` on PATH and npm/ populated by setup.sh.
-// The supi-skills test asserts on the installed version's behavior and warning output.
+// Runs the local rules and manual-only extensions through Pi's real loader,
+// runner, prompt builder, and skill-command expansion. No model calls.
+// Prerequisite: an npm-installed `pi` on PATH exposing dist/core.
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,7 +9,6 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const agentDir = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-// Test the Pi that the shell runs: resolve `pi` on PATH up to its package root.
 function findPiPackageRoot() {
 	for (const dir of (process.env.PATH ?? "").split(path.delimiter)) {
 		const bin = path.join(dir, "pi");
@@ -26,31 +24,31 @@ const piDist = path.join(findPiPackageRoot(), "dist/core");
 const { loadExtensions } = await import(path.join(piDist, "extensions/loader.js"));
 const { ExtensionRunner } = await import(path.join(piDist, "extensions/runner.js"));
 const { buildSystemPrompt } = await import(path.join(piDist, "system-prompt.js"));
+const { loadSkillsFromDir } = await import(path.join(piDist, "skills.js"));
+const { AgentSession } = await import(path.join(piDist, "agent-session.js"));
 
-const root = mkdtempSync(path.join(tmpdir(), "claude-rules-test-"));
-const home = path.join(root, "home");
+const root = mkdtempSync(path.join(tmpdir(), "pi-skill-visibility-test-"));
 const cwd = path.join(root, "project");
-mkdirSync(path.join(home, ".pi/agent/supi"), { recursive: true });
+const skillDir = path.join(root, "skills");
 mkdirSync(path.join(cwd, ".claude/rules"), { recursive: true });
 writeFileSync(path.join(cwd, ".claude/rules/testing.md"), "# testing\n");
-writeFileSync(
-	path.join(home, ".pi/agent/supi/config.json"),
-	JSON.stringify({ skills: { $schemaVersion: 2, "hidden-skill": { modelInvocation: "disabled" } } }),
-);
-// supi-core resolves its global config from os.homedir(), which follows HOME.
-process.env.HOME = home;
 test.after(() => rmSync(root, { recursive: true, force: true }));
 
-const skill = (name) => ({
-	name, description: `${name} description`, filePath: `/skills/${name}/SKILL.md`,
-	baseDir: `/skills/${name}`, source: "user", disableModelInvocation: false,
-});
+const manualNames = ["research", "writing-for-agents", "code-review", "grilling"];
+for (const name of [...manualNames, "visible-skill", "research-notes", "already-manual"]) {
+	const dir = path.join(skillDir, name);
+	mkdirSync(dir, { recursive: true });
+	writeFileSync(path.join(dir, "SKILL.md"),
+		`---\nname: ${name}\ndescription: ${name} description\n${name === "already-manual" ? "disable-model-invocation: true\n" : ""}---\nInstructions for ${name}.\n`);
+}
+const { skills, diagnostics } = loadSkillsFromDir({ dir: skillDir, source: "user" });
+assert.deepEqual(diagnostics, []);
+const originalSkills = structuredClone(skills);
+const originalFiles = new Map(skills.map((skill) => [skill.filePath, readFileSync(skill.filePath, "utf8")]));
 
 async function load(extensionPaths) {
 	const { extensions, errors, runtime } = await loadExtensions(extensionPaths, cwd);
 	assert.deepEqual(errors, []);
-	// AgentSession binds runtime actions before session_start; supi-skills reads commands there.
-	runtime.getCommands = () => [];
 	const sessionManager = { getSessionId: () => "session-a", getEntries: () => [], getCwd: () => cwd };
 	const runner = new ExtensionRunner(extensions, runtime, cwd, sessionManager, {});
 	const extensionErrors = [];
@@ -59,37 +57,56 @@ async function load(extensionPaths) {
 	return { runner, extensionErrors };
 }
 
-async function turn({ runner, extensionErrors }) {
-	const warnings = [];
-	const originalWarn = console.warn;
-	console.warn = (...args) => warnings.push(args.join(" "));
-	try {
-		const { systemPromptOptions } = await runner.emitBeforeAgentStart("hi", undefined, {
-			cwd, selectedTools: ["codemode", "read", "bash"], hiddenTools: ["read", "bash"],
-			toolSnippets: { codemode: "Run JavaScript" }, skills: [skill("visible-skill"), skill("hidden-skill")],
-		});
-		return { options: systemPromptOptions, prompt: buildSystemPrompt(systemPromptOptions), warnings, extensionErrors };
-	} finally {
-		console.warn = originalWarn;
-	}
+async function turn({ runner, extensionErrors }, codemodeOnly = false) {
+	const { systemPromptOptions } = await runner.emitBeforeAgentStart("hi", undefined, {
+		cwd,
+		selectedTools: codemodeOnly ? ["codemode", "read", "bash"] : ["read", "bash"],
+		hiddenTools: codemodeOnly ? ["read", "bash"] : [],
+		toolSnippets: { codemode: "Run JavaScript" }, skills,
+	});
+	assert.deepEqual(extensionErrors, []);
+	return { options: systemPromptOptions, prompt: buildSystemPrompt(systemPromptOptions) };
 }
 
 const claudeRules = path.join(agentDir, "extensions/claude-rules.ts");
-const run = async (extensionPaths) => turn(await load(extensionPaths));
+const manualOnly = path.join(agentDir, "extensions/manual-only-skills.ts");
 
 test("rules are listed in a structured section without forcing the prompt", async () => {
-	const { options, prompt, extensionErrors } = await run([claudeRules]);
-	assert.deepEqual(extensionErrors, []);
+	const { options, prompt } = await turn(await load([claudeRules]));
 	assert.equal(options.forceSystemPrompt, undefined);
 	assert.match(prompt, /<project_rules>\n[^]*- \.claude\/rules\/testing\.md[^]*\n<\/project_rules>/);
+	for (const name of manualNames) assert.ok(prompt.includes(`<name>${name}</name>`));
 });
 
-test("supi-skills still hides model-disabled skills when project rules exist", async () => {
-	const supiSkills = path.join(agentDir, "npm/node_modules/@mrclrchtr/supi-skills/src/extension.ts");
-	const { prompt, warnings, extensionErrors } = await run([claudeRules, supiSkills]);
-	assert.deepEqual(extensionErrors, []);
-	assert.deepEqual(warnings, []);
-	assert.match(prompt, /- \.claude\/rules\/testing\.md/);
-	assert.match(prompt, /<name>visible-skill<\/name>/);
-	assert.doesNotMatch(prompt, /<name>hidden-skill<\/name>/);
+for (const order of [[claudeRules, manualOnly], [manualOnly, claudeRules]]) {
+	test(`manual skills stay hidden with rules, ${path.basename(order[0])} first`, async () => {
+		const loaded = await load(order);
+		for (const codemodeOnly of [false, true]) {
+			for (let turnNumber = 0; turnNumber < 2; turnNumber++) {
+				const { options, prompt } = await turn(loaded, codemodeOnly);
+				assert.equal(options.forceSystemPrompt, undefined);
+				assert.match(prompt, /- \.claude\/rules\/testing\.md/);
+				for (const name of [...manualNames, "already-manual"]) {
+					assert.ok(!prompt.includes(`<name>${name}</name>`), `${name} must not be advertised`);
+				}
+				for (const name of ["visible-skill", "research-notes"]) {
+					assert.ok(prompt.includes(`<name>${name}</name>`), `${name} must remain advertised`);
+				}
+				assert.deepEqual(skills, originalSkills, "resource catalog must remain intact");
+			}
+		}
+	});
+}
+
+test("all four manual commands still expand their original files and arguments", async () => {
+	await turn(await load([manualOnly]));
+	// Exercise Pi's command expander against the unchanged resource catalog.
+	const session = { resourceLoader: { getSkills: () => ({ skills }) } };
+	for (const name of manualNames) {
+		const text = AgentSession.prototype._expandSkillCommand.call(session, `/skill:${name} user request`);
+		assert.ok(text.startsWith(`<skill name="${name}" location="`));
+		assert.ok(text.includes(`Instructions for ${name}.`));
+		assert.ok(text.endsWith("</skill>\n\nuser request"));
+	}
+	for (const [file, content] of originalFiles) assert.equal(readFileSync(file, "utf8"), content);
 });

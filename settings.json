@@ -35,10 +35,7 @@
       "extensions": []
     },
     "npm:pi-vim",
-    "npm:@mrclrchtr/supi-settings",
-    "npm:@mrclrchtr/supi-skills",
     "npm:@luan.sh/pi-collapse-transcript",
-    "npm:@mrclrchtr/supi-context",
     "npm:@arhen/pi-core-tps-stats",
     "npm:@arhen/pi-core-ask"
   ]
