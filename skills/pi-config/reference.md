@@ -36,17 +36,12 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `omarchy-theme-set-pi`, selecting `omarchy-system`. Regular theme changes only
   refresh pi's generated theme file; an explicit `--activate` call can also
   change the setting later.
-- **`tuiMode` is pinned to `regular`, reversed from a `fullscreen` pin.**
-  Fullscreen renders the transcript in the alternate screen, so the pane's
-  Herdr scrollback is empty: `herdr pane list` reports
-  `max_offset_from_bottom: 0` for that pane against 5408 lines for the same pi
-  in regular. Copy mode then has nothing to page, and `herdr pane read
-  --lines N` returns only the visible screen (49 rows) or, once it needs real
-  history, fails `agent_not_idle` — alternate-screen history can only be
-  captured by scrolling an idle agent, after waiting for one. Regular keeps
-  history in Herdr, where reads are passive at any agent state and cost
-  microseconds. For fullscreen in one session use `pi --tui-mode fullscreen`
-  rather than flipping this key, so the repo stays unpinned to one machine.
+- **`tuiMode` is unset and follows Pi's default.** Regular mode preserves
+  passive Herdr scrollback. A recorded check found no scrollback in fullscreen
+  (`max_offset_from_bottom: 0`) versus 5408 lines in regular. Fullscreen reads
+  exposed only the visible 49 rows; requesting older history while the agent
+  was active failed with `agent_not_idle`. For sessions needing passive history
+  reads, use `pi --tui-mode regular` rather than changing the shared setting.
 
 ## Models and local extensions
 
@@ -63,13 +58,10 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
   alternates between two levels, and the extension refuses to land on a level
   the current model clamps instead of silently keeping a third state.
-  **The two levels are per-model in that file's `TABLE`.** pi's own cycle is
-  model-aware too, but not two-stop; narrowing it is only safe if the pair
-  respects each model's `thinkingLevelMap`. DeepSeek (V4 Flash / V4 Pro) sets
-  `medium` to null, so its pair is high/max while Codex uses medium/max — a
-  hardcoded medium/max pair made Shift+Tab a dead key on DeepSeek, which is why
-  the table exists. Entries match on model id, so the proxy copy of DeepSeek
-  under another provider is covered by the same row.
+  Pi's native cycle visits all available levels. DeepSeek (V4 Flash / V4 Pro)
+  maps `medium` to null, so its pair is high/max; other models use medium/max.
+  A fixed medium/max pair made Shift+Tab a dead key on DeepSeek. Match the model
+  id so DeepSeek behind another provider keeps the same pair.
   `extensions/claude-rules.ts` lists a project's `.claude/rules/*.md` in the
   system prompt and is inert in projects that have no such directory.
 - Internal field names change between layers, and the documented name is not

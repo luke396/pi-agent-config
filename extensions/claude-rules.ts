@@ -72,12 +72,10 @@ function findMarkdownFiles(dir: string, basePath: string = ""): string[] {
 
 export default function claudeRulesExtension(pi: ExtensionAPI) {
 	let ruleFiles: string[] = [];
-	let rulesDir: string = "";
 
 	// Scan for rules on session start
 	pi.on("session_start", async (_event, ctx) => {
-		rulesDir = path.join(ctx.cwd, ".claude", "rules");
-		ruleFiles = findMarkdownFiles(rulesDir);
+		ruleFiles = findMarkdownFiles(path.join(ctx.cwd, ".claude", "rules"));
 
 		if (ruleFiles.length > 0) {
 			ctx.ui.notify(`Found ${ruleFiles.length} rule(s) in .claude/rules/`, "info");

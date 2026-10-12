@@ -53,8 +53,7 @@ missions/
 
 # --- Omarchy-generated theme ---
 # Rendered by Omarchy from $OMARCHY_PATH/default/themed/pi.json.tpl, so every
-# Omarchy machine regenerates it on theme change. settings.json still names it;
-# pi falls back to the default theme silently when the file is absent.
+# Omarchy machine regenerates it on theme change.
 /themes/omarchy-system.json
 
 # --- Files owned by third-party tools; each machine installs them itself ---

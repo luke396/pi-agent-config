@@ -80,7 +80,7 @@ Verified with Node.js 26.7.0 and Pi 1.1.0. Offline tests use temporary Git fixtu
 and fake providers:
 
 ```sh
-node --test tests/settings-sync.test.mjs tests/session-title.test.ts
+node --test tests/settings-sync.test.mjs tests/*.test.ts
 ```
 
 The integration test additionally needs an npm-installed Pi on `PATH` exposing
