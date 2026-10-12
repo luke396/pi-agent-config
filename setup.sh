@@ -10,16 +10,14 @@
 # notice are in extensions/settings-sync.ts. Machine fields never belong in Git.
 # Idempotent.
 #
-# Adopting an existing config: tracked files come from the repo, while the
-# machine-local ones (auth.json, models.json, trust.json, sessions/, ...) are
-# untracked and therefore stay put.
-#
-#   cd ~/.pi/agent
-#   git init -b main
-#   git remote add origin <url>
-#   git fetch origin
-#   git checkout -f -B main origin/main
-#   ./setup.sh
+# First adoption and migration: see README.md, "Adopt the whole configuration".
+# Stop Pi and make a private backup before replacing an existing agent directory.
+# Do not force-checkout over it: tracked files (including settings.json) would
+# overwrite local preferences; ignore rules do not protect those files.
+# Run from the intended agent directory. If PI_CODING_AGENT_DIR is set, it must
+# point here too: the filter follows this checkout, but package updates follow
+# Pi's agent directory. Setup replaces this repo's core.hooksPath; review existing
+# hooks first. Package-update warnings require attention even if setup says done.
 #
 # A conflict in settings.json is resolved by taking one side and finishing the
 # pull (git rebase --continue); the post-rewrite hook re-runs this script.
