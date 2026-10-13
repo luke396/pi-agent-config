@@ -11,7 +11,7 @@
     "openai/gpt-6-astra": "max",
     "openai/gpt-6.1-sol": "max"
   },
-  "showCacheMissNotices": true,
+  "showCacheMissNotices": false,
   "terminal": {
     "images": "kitty"
   },
