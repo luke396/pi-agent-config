@@ -30,6 +30,12 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   activates in fullscreen; regular mode retains native rows. The bundled
   `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
   detail rendering; removing open-tui does not remove these changes.
+- **`extensions/quiet-tui.ts` turns off libtui's bubbles and animations.** With
+  the defaults, a long fullscreen session held one core at ~100% while only
+  waiting on the model: animations repaint ~30 fps and every frame re-slices
+  every user-message bubble (CPU profile, 2026-10-13). libtui has no settings
+  store; `@luan.sh/pi-xsettings` was not installed for this because it also
+  syncs `settings.json`, a second writer next to Omarchy and settings-sync.
 - **pi is pinned to `catppuccin-tui-mocha`, so it no longer follows the desktop
   theme.** Matching the Catppuccin desktop today is a choice, not a
   consequence. Omarchy's install setup passes `--activate` to
