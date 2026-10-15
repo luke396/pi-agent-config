@@ -1,21 +1,20 @@
-// Drives the real `/tier` command through Pi's agent loop against a loopback
+// Drives the real `/fast` command through Pi's agent loop against a loopback
 // OpenAI endpoint and asserts the request the provider would have received.
 // Only a loopback fake API is used; no credentials or network calls are needed.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import openaiServiceTier from "../../extensions/openai-service-tier.ts";
+import fastMode from "../../extensions/openai-fast-mode.ts";
 
 type RecordedRequest = { body: any; headers: Record<string, string | string[] | undefined> };
 
 export default async function (pi: ExtensionAPI) {
-	const requests: RecordedRequest[] = [];
-	let replyOpen = true;
+	let request: RecordedRequest | undefined;
 	const server = createServer(async (req, res) => {
 		let raw = "";
 		for await (const chunk of req) raw += chunk;
 		const body = raw ? JSON.parse(raw) : {};
-		if (replyOpen) requests.push({ body, headers: req.headers });
+		request = { body, headers: req.headers };
 		res.writeHead(200, { "content-type": "text/event-stream" });
 		const text = "ok";
 		const item = { id: "msg_test", type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] };
@@ -45,45 +44,43 @@ export default async function (pi: ExtensionAPI) {
 		}],
 	});
 
-	// The extension under test keeps its own command handler private, so capture
-	// it through the registration it makes.
-	let setTier: ((args: string, ctx: unknown) => Promise<void>) | undefined;
-	openaiServiceTier({
+	// The extension under test keeps its command handler private, so capture it
+	// through the registration it makes.
+	let setFast: ((args: string, ctx: unknown) => Promise<void>) | undefined;
+	fastMode({
 		on: (name: string, handler: any) => pi.on(name as never, handler),
 		registerCommand: (name: string, definition: any) => {
-			if (name === "tier") setTier = definition.handler;
+			if (name === "fast") setFast = definition.handler;
 			pi.registerCommand(name, definition);
 		},
 	} as ExtensionAPI);
 
-	pi.registerCommand("tier-offline", {
-		description: "Set a tier, run one turn, and assert the outgoing request",
+	pi.registerCommand("fast-offline", {
+		description: "Set Fast mode, run one turn, and assert the outgoing request",
 		handler: async (args, ctx) => {
 			try {
-				assert.ok(setTier, "the extension did not register /tier");
-				const tier = args.trim();
+				assert.ok(setFast, "the extension did not register /fast");
+				const state = args.trim();
 				// Assert on the command's own notice so an argument the command
 				// refuses cannot pass this fixture as "no tier sent".
 				const notices: string[] = [];
-				await setTier(tier, {
+				await setFast(state, {
 					model: ctx.model,
-					ui: { notify: (message: string) => notices.push(message), setStatus: () => {} },
+					ui: { notify: (message: string) => notices.push(message) },
 				} as never);
-				assert.deepEqual(notices, [tier === "fast" ? "Fast mode: on" : "Fast mode: off"]);
+				assert.deepEqual(notices, [state === "on" ? "Fast mode: on" : "Fast mode: off"]);
 				await pi.sendUserMessage("Reply with the single word ok.", { triggerTurn: true });
 				await ctx.waitForIdle();
-				const request = requests.at(-1);
 				assert.ok(request, "no provider request reached the loopback endpoint");
 				assert.equal(request.body.model, "gpt-6-astra");
-				assert.equal(request.body.service_tier, tier === "fast" ? "priority" : undefined);
-				// Fast is a body field; the Ultrafast routing header is not part of this switch.
+				assert.equal(request.body.service_tier, state === "on" ? "priority" : undefined);
+				// Fast is a body field; no routing header belongs to this switch.
 				assert.equal(request.headers["openai-service-tier"], undefined);
-				console.log(`OPENAI_SERVICE_TIER_TESTS_PASSED ${tier}`);
+				console.log(`OPENAI_FAST_MODE_TESTS_PASSED ${state}`);
 			} catch (error) {
 				console.error(error);
 				process.exitCode = 1;
 			} finally {
-				replyOpen = false;
 				server.closeAllConnections();
 				await new Promise<void>((resolve) => server.close(() => resolve()));
 			}
