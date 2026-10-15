@@ -71,9 +71,12 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   Measured 2026-10-15 on the ChatGPT sign-in `openai` path with
   `openai/gpt-6-astra`: all three tiers returned HTTP 200 and every response
   reported `service_tier: "default"`, so such a run proves acceptance and
-  routing, never acceleration. Pi's cost table knows only `flex` (0.5×) and
-  `priority` (2×), so the footer shows the Fast surcharge and understates
-  Ultrafast. The switch is not persisted: every new or resumed session starts on
+  routing, never acceleration. Pi's cost display ignores the switch: its
+  multiplier table knows only `flex` (0.5×) and `priority` (2×), and the tier
+  it multiplies comes from pi's own stream option or the server echo —
+  `buildBaseOptions` never sets `serviceTier`, and this endpoint echoes
+  `default` — so neither tier changes the footer cost, which understates the
+  bill. The switch is not persisted: every new or resumed session starts on
   standard.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
