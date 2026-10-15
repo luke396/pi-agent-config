@@ -75,8 +75,9 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   Pi's cost display does not reflect the override: the tier it multiplies comes
   from pi's own stream option or the server echo — `buildBaseOptions` never sets
   `serviceTier`, and this endpoint echoes `default` — so the shown amount is
-  computed as if the tier were unset; if the server does bill Fast, it is low. Fast starts off in every new, resumed or forked session, because pi
-  recreates the extension runtime and runs the factory again.
+  computed as if the tier were unset; if the server does bill Fast, it is low.
+  Fast starts off in every new, resumed or forked session, because pi recreates
+  the extension runtime and runs the factory again.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
