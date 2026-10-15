@@ -8,7 +8,6 @@ function fixture(model: { provider: string; id: string } = astra) {
 	const notices: { message: string; type: string }[] = [];
 	const statuses: [string, string | undefined][] = [];
 	let payloadHook: any;
-	let headerHook: any;
 	let modelSelect: any;
 	let command: any;
 	const ctx: any = {
@@ -22,7 +21,6 @@ function fixture(model: { provider: string; id: string } = astra) {
 	serviceTier({
 		on: (name: string, handler: any) => {
 			if (name === "before_provider_request") payloadHook = handler;
-			else if (name === "before_provider_headers") headerHook = handler;
 			else if (name === "model_select") modelSelect = handler;
 			else throw new Error(`unexpected event: ${name}`);
 		},
@@ -37,10 +35,6 @@ function fixture(model: { provider: string; id: string } = astra) {
 		lastStatus: () => statuses.at(-1)?.[1],
 		set: (args = "") => command(args, ctx),
 		payload: (payload: unknown) => payloadHook({ type: "before_provider_request", payload }, ctx),
-		headers: (headers: Record<string, string> = {}) => {
-			headerHook({ type: "before_provider_headers", headers }, ctx);
-			return headers;
-		},
 		selectModel: (next: { provider: string; id: string }) => {
 			ctx.model = next;
 			modelSelect({ type: "model_select", model: next }, ctx);
@@ -48,82 +42,65 @@ function fixture(model: { provider: string; id: string } = astra) {
 	};
 }
 
-test("standard leaves requests, headers, and status alone", () => {
+test("fast stays off until the command asks for it", () => {
 	const f = fixture();
 	assert.equal(f.payload({ model: "gpt-6-astra", input: "hi" }), undefined);
-	assert.deepEqual(f.headers({}), {});
 	assert.equal(f.lastStatus(), undefined);
 });
 
-test("fast requests the priority spelling in the body only", () => {
+test("fast requests the priority spelling in the body", () => {
 	const f = fixture();
 	f.set("fast");
-	assert.deepEqual(f.payload({ model: "gpt-6-astra" }), { model: "gpt-6-astra", service_tier: "priority" });
-	assert.deepEqual(f.headers({ existing: "keep" }), { existing: "keep" });
-	assert.equal(f.lastStatus(), "tier:fast");
-	assert.deepEqual(f.notices, [{ message: "Service tier: fast", type: "info" }]);
+	assert.deepEqual(f.payload({ model: "gpt-6-astra", input: "hi" }), {
+		model: "gpt-6-astra",
+		input: "hi",
+		service_tier: "priority",
+	});
+	assert.equal(f.lastStatus(), "fast");
+	assert.deepEqual(f.notices, [{ message: "Fast mode: on", type: "info" }]);
 });
 
-test("ultrafast sets the routing header beside the body field", () => {
-	const f = fixture({ provider: "openai", id: "gpt-6.1-sol" });
-	f.set("ultrafast");
-	assert.deepEqual(f.payload({ model: "gpt-6.1-sol" }), { model: "gpt-6.1-sol", service_tier: "ultrafast" });
-	assert.deepEqual(f.headers({ existing: "keep" }), { existing: "keep", "OpenAI-Service-Tier": "ultrafast" });
-	assert.equal(f.lastStatus(), "tier:ultrafast");
+test("the bare command toggles off again", () => {
+	const f = fixture();
+	f.set();
+	assert.equal(f.payload({ model: "gpt-6-astra" })?.service_tier, "priority");
+	f.set();
+	assert.equal(f.payload({ model: "gpt-6-astra" }), undefined);
+	assert.equal(f.lastStatus(), undefined);
+	assert.deepEqual(f.notices.map((n: { message: string }) => n.message), ["Fast mode: on", "Fast mode: off"]);
 });
 
-test("ultrafast is refused where it cannot apply", () => {
-	for (const model of [
-		{ provider: "openai", id: "gpt-6-luna" },
-		{ provider: "cubence", id: "gpt-6-astra" },
-	]) {
-		const f = fixture(model);
-		f.set("ultrafast");
-		assert.deepEqual(f.notices, [{
-			message: "Ultrafast needs gpt-6-astra or gpt-6.1-sol on the openai provider.",
-			type: "warning",
-		}]);
-		assert.equal(f.payload({ model: model.id }), undefined);
-		assert.deepEqual(f.headers({}), {});
-		assert.equal(f.lastStatus(), undefined);
-	}
+test("off turns fast off explicitly", () => {
+	const f = fixture();
+	f.set("fast");
+	f.set("off");
+	assert.equal(f.payload({ model: "gpt-6-astra" }), undefined);
+	assert.equal(f.lastStatus(), undefined);
 });
 
-test("an armed tier never leaks to another provider", () => {
+test("fast never reaches another provider", () => {
 	const f = fixture({ provider: "cubence", id: "claude-opus-5" });
 	f.set("fast");
-	assert.equal(f.lastStatus(), "tier:fast (inactive)");
+	assert.equal(f.lastStatus(), "fast (inactive)");
 	assert.equal(f.payload({ model: "claude-opus-5" }), undefined);
-	assert.deepEqual(f.headers({}), {});
 });
 
-test("the command cycles standard, fast, ultrafast", () => {
+test("request gating follows model changes", () => {
 	const f = fixture();
-	const tiers = [];
-	for (let i = 0; i < 4; i++) {
-		f.set();
-		tiers.push(f.payload({ model: "gpt-6-astra" })?.service_tier ?? "standard");
-	}
-	assert.deepEqual(tiers, ["priority", "ultrafast", "standard", "priority"]);
-});
-
-test("the status follows model changes", () => {
-	const f = fixture();
-	f.set("ultrafast");
-	assert.equal(f.lastStatus(), "tier:ultrafast");
-	f.selectModel({ provider: "openai", id: "gpt-6-luna" });
-	assert.equal(f.lastStatus(), "tier:ultrafast (inactive)");
-	assert.equal(f.payload({ model: "gpt-6-luna" }), undefined);
+	f.set("fast");
+	f.selectModel({ provider: "cubence", id: "claude-opus-5" });
+	assert.equal(f.lastStatus(), "fast (inactive)");
+	assert.equal(f.payload({ model: "claude-opus-5" }), undefined);
 	f.selectModel({ provider: "openai", id: "gpt-6.1-sol" });
-	assert.equal(f.lastStatus(), "tier:ultrafast");
-	assert.equal(f.payload({ model: "gpt-6.1-sol" })?.service_tier, "ultrafast");
+	assert.equal(f.lastStatus(), "fast");
+	assert.equal(f.payload({ model: "gpt-6.1-sol" })?.service_tier, "priority");
 });
 
 test("an unknown tier is reported and changes nothing", () => {
 	const f = fixture();
-	f.set("fastest");
+	f.set("turbo");
 	assert.deepEqual(f.notices, [{
-		message: 'Unknown service tier "fastest". Use standard | fast | ultrafast.',
+		message: 'Unknown service tier "turbo". Use fast | off.',
 		type: "error",
 	}]);
 	assert.equal(f.payload({ model: "gpt-6-astra" }), undefined);

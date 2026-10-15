@@ -62,22 +62,22 @@ export default async function (pi: ExtensionAPI) {
 			try {
 				assert.ok(setTier, "the extension did not register /tier");
 				const tier = args.trim();
-				await setTier(tier, ctx);
+				// Assert on the command's own notice so an argument the command
+				// refuses cannot pass this fixture as "no tier sent".
+				const notices: string[] = [];
+				await setTier(tier, {
+					model: ctx.model,
+					ui: { notify: (message: string) => notices.push(message), setStatus: () => {} },
+				} as never);
+				assert.deepEqual(notices, [tier === "fast" ? "Fast mode: on" : "Fast mode: off"]);
 				await pi.sendUserMessage("Reply with the single word ok.", { triggerTurn: true });
 				await ctx.waitForIdle();
 				const request = requests.at(-1);
 				assert.ok(request, "no provider request reached the loopback endpoint");
-				if (tier === "standard") {
-					assert.equal(request.body.service_tier, undefined);
-					assert.equal(request.headers["openai-service-tier"], undefined);
-				} else if (tier === "fast") {
-					assert.equal(request.body.service_tier, "priority");
-					assert.equal(request.headers["openai-service-tier"], undefined);
-				} else {
-					assert.equal(request.body.service_tier, "ultrafast");
-					assert.equal(request.headers["openai-service-tier"], "ultrafast");
-				}
 				assert.equal(request.body.model, "gpt-6-astra");
+				assert.equal(request.body.service_tier, tier === "fast" ? "priority" : undefined);
+				// Fast is a body field; the Ultrafast routing header is not part of this switch.
+				assert.equal(request.headers["openai-service-tier"], undefined);
 				console.log(`OPENAI_SERVICE_TIER_TESTS_PASSED ${tier}`);
 			} catch (error) {
 				console.error(error);

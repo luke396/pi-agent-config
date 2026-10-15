@@ -59,25 +59,24 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `"default"`, so this verified the requested setting and compatibility, not
   actual acceleration. Keep that distinction when reporting success. Subagent
   children can also request priority through pi-subagents' own fast hook.
-- **The OpenAI tier switch is manual and per session.**
-  `extensions/openai-service-tier.ts` owns `/tier` (standard | fast |
-  ultrafast) and replaces the "per provider/model, not a global toggle" answer
-  for conversation turns; `samplingParams.service_tier` is no longer needed for
-  them. Fast is the body field `service_tier: "priority"`; Ultrafast additionally
-  needs the `OpenAI-Service-Tier` header, which returns HTTP 400 for any value
-  but `ultrafast`, so the header is written for that tier only.
-  Both hooks fire only for the session's own agent-loop requests: compaction and
-  nested model calls build their own request options and keep the tier they set.
-  Measured 2026-10-15 on the ChatGPT sign-in `openai` path with
-  `openai/gpt-6-astra`: all three tiers returned HTTP 200 and every response
-  reported `service_tier: "default"`, so such a run proves acceptance and
-  routing, never acceleration. Pi's cost display ignores the switch: its
-  multiplier table knows only `flex` (0.5×) and `priority` (2×), and the tier
-  it multiplies comes from pi's own stream option or the server echo —
-  `buildBaseOptions` never sets `serviceTier`, and this endpoint echoes
-  `default` — so neither tier changes the footer cost, which understates the
-  bill. The switch is not persisted: every new or resumed session starts on
-  standard.
+- **Fast mode is a manual, per-session switch; Ultrafast stays out of it.**
+  `extensions/openai-service-tier.ts` owns `/tier` (`fast` | `off`; bare
+  `/tier` toggles) and replaces the "per provider/model, not a global toggle"
+  answer for conversation turns. Its off state is called "off" because the switch
+  only adds or removes its own override: with `samplingParams.service_tier` set
+  in `models.json` the effective tier stays whatever that config asks for, so the
+  command never promises a Standard-priced request.
+  Fast is the body field `service_tier: "priority"`; the literal `"fast"` still
+  returns HTTP 400 here (re-measured 2026-10-15). Only the session's own
+  agent-loop requests pass the hook; compaction and nested model calls build
+  their own options and keep the tier they set, so Ultrafast requests and their
+  `OpenAI-Service-Tier` header belong to the Astra compaction extension alone.
+  Pi's cost display ignores the switch: its multiplier table knows only `flex`
+  (0.5×) and `priority` (2×), and the tier it multiplies comes from pi's own
+  stream option or the server echo — `buildBaseOptions` never sets `serviceTier`,
+  and this endpoint echoes `default` — so the footer understates the bill while
+  fast is on. Fast starts off in every new, resumed or forked session, because pi
+  recreates the extension runtime and runs the factory again.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
