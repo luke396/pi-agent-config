@@ -17,6 +17,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Project rules | [claude-rules.ts](extensions/claude-rules.ts): advertise `.claude/rules/**/*.md` for selective loading. |
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab, paired with [keybindings.json](keybindings.json). |
+| Astra compaction | [astra-ultrafast-compaction.ts](extensions/astra-ultrafast-compaction.ts): request Ultrafast only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 
 [settings.json](settings.json) lists current packages and preferences;
@@ -42,6 +43,27 @@ session; omit or disable the extension to avoid these calls altogether.
 History-based skills require a separately configured `agent-history` CLI and
 archive. Provider accounts, web search, and remote MCP have their own setup and
 data flows; this repo does not provision them.
+
+## Astra compaction
+
+The local extension requests `service_tier: "ultrafast"` and
+`OpenAI-Service-Tier: ultrafast` for manual and automatic compaction of
+`openai/gpt-6-astra`. Normal conversation, other models, branch summaries, and
+the selected thinking level are unchanged. It reuses Pi's native summarizer,
+retained-history boundary, file tracking, usage accounting, and retry policy.
+
+Ultrafast has higher pricing/allowance consumption and requires eligible access;
+see OpenAI's [Ultrafast guide](https://developers.openai.com/api/docs/guides/ultrafast-mode)
+and [header/eligibility FAQ](https://help.openai.com/en/articles/11647665-fast-mode-faq).
+A successful HTTP response does not prove the requested tier was used. The
+extension warns when the provider reports a different tier, while retaining the
+completed summary. Request failures report an error and cancel compaction
+instead of silently starting a second, ordinary-tier attempt.
+
+Load it with `/reload` or a new Pi session. It changes neither `models.json`
+nor the session's selected model. Verified on Pi 1.2.0: the local fake API tests
+observe the body and header; a small live ChatGPT OAuth request completed but
+reported `default`, so actual Ultrafast service was **not** confirmed.
 
 ## Reuse
 
@@ -81,10 +103,13 @@ Verified with Node.js 26.7.0 and Pi 1.1.0. Offline tests use temporary Git fixtu
 and fake providers:
 
 ```sh
-node --test tests/settings-sync.test.mjs tests/*.test.ts
+node --test tests/settings-sync.test.mjs tests/*.test.ts tests/astra-ultrafast-compaction.test.mjs
 ```
 
-The integration test additionally needs an npm-installed Pi on `PATH` exposing
+The Astra test uses the installed `pi` on `PATH` and a loopback fake OpenAI API;
+it also works with the standalone distribution. No live credentials are used.
+
+The rules integration test additionally needs an npm-installed Pi on `PATH` exposing
 `dist/core`. The standalone Pi distribution does not supply those importable
 modules.
 
@@ -92,7 +117,7 @@ modules.
 node --test tests/claude-rules.test.mjs
 ```
 
-These tests make no model calls and do not verify live naming quality or all
+These tests make no live model calls and do not verify live naming quality or all
 third-party packages and platforms.
 
 ## License
