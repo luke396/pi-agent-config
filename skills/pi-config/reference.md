@@ -67,10 +67,11 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   in `models.json` the effective tier stays whatever that config asks for, so the
   command never promises a Standard-priced request.
   Fast is the body field `service_tier: "priority"`; the literal `"fast"` still
-  returns HTTP 400 here (re-measured 2026-10-15). Only the session's own
-  agent-loop requests pass the hook; compaction and nested model calls build
-  their own options and keep the tier they set, so Ultrafast requests and their
-  `OpenAI-Service-Tier` header belong to the Astra compaction extension alone.
+  returns HTTP 400 here (re-measured 2026-10-15). Session requests pass the hook,
+  cache-warming replays included, because the warmer reuses the session's request
+  options; compaction and extension-initiated nested calls build their own options
+  and keep the tier they set, so Ultrafast requests and their
+  `OpenAI-Service-Tier` header belong to the compaction extension alone.
   Pi's cost display ignores the switch: its multiplier table knows only `flex`
   (0.5×) and `priority` (2×), and the tier it multiplies comes from pi's own
   stream option or the server echo — `buildBaseOptions` never sets `serviceTier`,
