@@ -59,6 +59,22 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `"default"`, so this verified the requested setting and compatibility, not
   actual acceleration. Keep that distinction when reporting success. Subagent
   children can also request priority through pi-subagents' own fast hook.
+- **The OpenAI tier switch is manual and per session.**
+  `extensions/openai-service-tier.ts` owns `/tier` (standard | fast |
+  ultrafast) and replaces the "per provider/model, not a global toggle" answer
+  for conversation turns; `samplingParams.service_tier` is no longer needed for
+  them. Fast is the body field `service_tier: "priority"`; Ultrafast additionally
+  needs the `OpenAI-Service-Tier` header, which returns HTTP 400 for any value
+  but `ultrafast`, so the header is written for that tier only.
+  Both hooks fire only for the session's own agent-loop requests: compaction and
+  nested model calls build their own request options and keep the tier they set.
+  Measured 2026-10-15 on the ChatGPT sign-in `openai` path with
+  `openai/gpt-6-astra`: all three tiers returned HTTP 200 and every response
+  reported `service_tier: "default"`, so such a run proves acceptance and
+  routing, never acceleration. Pi's cost table knows only `flex` (0.5×) and
+  `priority` (2×), so the footer shows the Fast surcharge and understates
+  Ultrafast. The switch is not persisted: every new or resumed session starts on
+  standard.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
