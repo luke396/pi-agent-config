@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import astraUltrafast from "../../extensions/astra-ultrafast-compaction.ts";
+import astraFast from "../../extensions/astra-fast-compaction.ts";
 
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("test-astra-compaction", {
@@ -63,7 +63,7 @@ export default function (pi: ExtensionAPI) {
 					httpIdleTimeoutMs: 10000, websocketConnectTimeoutMs: 2000,
 				};
 				let hook: any;
-				astraUltrafast({
+				astraFast({
 					on: (name, handler) => {
 						assert.equal(name, "session_before_compact");
 						hook = handler;
@@ -110,8 +110,8 @@ export default function (pi: ExtensionAPI) {
 					const input = event(reason);
 					const result = await hook(input, ctx);
 					assert.ok(result.compaction, JSON.stringify(notices));
-					assert.equal(requests.at(-1).service_tier, "ultrafast");
-					assert.equal(requests.at(-1).requestHeaders["openai-service-tier"], "ultrafast");
+					assert.equal(requests.at(-1).service_tier, "priority");
+					assert.equal(requests.at(-1).requestHeaders["openai-service-tier"], undefined);
 					assert.equal(requests.at(-1).reasoning.effort, "max");
 					assert.match(JSON.stringify(requests.at(-1)), /Keep the test command/);
 					assert.equal(result.compaction.firstKeptEntryId, input.preparation.firstKeptEntryId);
@@ -137,7 +137,7 @@ export default function (pi: ExtensionAPI) {
 				const start = requests.length;
 				const splitResult = await hook(split, ctx);
 				assert.equal(requests.length - start, 2);
-				assert.ok(requests.slice(start).every((r) => r.service_tier === "ultrafast" && r.requestHeaders["openai-service-tier"] === "ultrafast"));
+				assert.ok(requests.slice(start).every((r) => r.service_tier === "priority" && r.requestHeaders["openai-service-tier"] === undefined));
 				assert.match(JSON.stringify(requests[start]), /Previous decision: use Node/);
 				assert.match(splitResult.compaction.summary, /Turn Context \(split turn\)/);
 				assert.equal(splitResult.compaction.usage.totalTokens, 30);
@@ -169,17 +169,23 @@ export default function (pi: ExtensionAPI) {
 				statuses.push(503, 200);
 				assert.ok((await hook(event(), ctx)).compaction);
 				assert.equal(requests.length - retryStart, 2);
-				assert.ok(requests.slice(retryStart).every((r) => r.service_tier === "ultrafast" && r.requestHeaders["openai-service-tier"] === "ultrafast"));
+				assert.ok(requests.slice(retryStart).every((r) => r.service_tier === "priority" && r.requestHeaders["openai-service-tier"] === undefined));
 
-				// A successful response can still be downgraded by the service.
+				// Fast and priority are equivalent service-tier names.
+				const priorNotices = notices.length;
+				returnedTier = "fast";
+				assert.ok((await hook(event(), ctx)).compaction);
+				assert.equal(notices.length, priorNotices);
+
+				// Preserve the summary and report a differing tier echo; this alone does not prove a downgrade.
 				returnedTier = "default";
 				assert.ok((await hook(event(), ctx)).compaction);
 				assert.deepEqual(notices.at(-1), {
-					message: "Astra compaction requested Ultrafast; provider reported default.", type: "warning",
+					message: "Astra compaction requested Fast (priority); provider reported default.", type: "warning",
 				});
 				returnedTier = undefined;
 
-				// Rejections must not silently fall through to non-Ultrafast compaction.
+				// Rejections must not silently fall through to ordinary-tier compaction.
 				statuses.push(400);
 				assert.deepEqual(await hook(event(), ctx), { cancel: true });
 				assert.match(notices.at(-1).message, /Unsupported service_tier/);

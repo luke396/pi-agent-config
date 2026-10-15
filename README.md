@@ -17,7 +17,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Project rules | [claude-rules.ts](extensions/claude-rules.ts): advertise `.claude/rules/**/*.md` for selective loading. |
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab, paired with [keybindings.json](keybindings.json). |
-| Astra compaction | [astra-ultrafast-compaction.ts](extensions/astra-ultrafast-compaction.ts): request Ultrafast only when compacting `openai/gpt-6-astra`. |
+| Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 
 [settings.json](settings.json) lists current packages and preferences;
@@ -46,24 +46,27 @@ data flows; this repo does not provision them.
 
 ## Astra compaction
 
-The local extension requests `service_tier: "ultrafast"` and
-`OpenAI-Service-Tier: ultrafast` for manual and automatic compaction of
-`openai/gpt-6-astra`. Normal conversation, other models, branch summaries, and
-the selected thinking level are unchanged. It reuses Pi's native summarizer,
-retained-history boundary, file tracking, usage accounting, and retry policy.
+The local extension requests Fast (`service_tier: "priority"`) for manual and
+automatic compaction of `openai/gpt-6-astra`. It sends no
+`OpenAI-Service-Tier` header; that header is reserved for Ultrafast.
+Normal conversation (including its separate `/tier` choice), other models,
+branch summaries, and the selected thinking level are unchanged. It reuses Pi's
+native summarizer, retained-history boundary, file tracking, usage accounting,
+and retry policy. The old `astraUltrafast` details marker is intentionally kept
+so previously compacted sessions retain their cumulative file lists.
 
-Ultrafast has higher pricing/allowance consumption and requires eligible access;
-see OpenAI's [Ultrafast guide](https://developers.openai.com/api/docs/guides/ultrafast-mode)
-and [header/eligibility FAQ](https://help.openai.com/en/articles/11647665-fast-mode-faq).
-A successful HTTP response does not prove the requested tier was used. The
-extension warns when the provider reports a different tier, while retaining the
-completed summary. Request failures report an error and cancel compaction
-instead of silently starting a second, ordinary-tier attempt.
+Fast has higher pricing/allowance consumption; see OpenAI's
+[speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed).
+The switch from Ultrafast followed account-specific catalog checks: both the
+public API OAuth and Codex OAuth catalogs advertised only `priority` for Astra.
+HTTP 200 does not prove acceleration, and an OAuth response echoing `default`
+does not by itself prove a downgrade. The extension reports a differing echo
+while keeping the completed summary. Request failures report an error and
+cancel compaction instead of silently starting an ordinary-tier attempt.
 
 Load it with `/reload` or a new Pi session. It changes neither `models.json`
-nor the session's selected model. Verified on Pi 1.2.0: the local fake API tests
-observe the body and header; a small live ChatGPT OAuth request completed but
-reported `default`, so actual Ultrafast service was **not** confirmed.
+nor the session's selected model. Pi 1.2.0 fake-API tests verify `priority` in
+the body, absence of the Ultrafast header, and unchanged normal requests.
 
 ## Reuse
 
@@ -103,7 +106,7 @@ Verified with Node.js 26.7.0 and Pi 1.1.0. Offline tests use temporary Git fixtu
 and fake providers:
 
 ```sh
-node --test tests/settings-sync.test.mjs tests/*.test.ts tests/astra-ultrafast-compaction.test.mjs
+node --test tests/settings-sync.test.mjs tests/*.test.ts tests/astra-fast-compaction.test.mjs
 ```
 
 The Astra test uses the installed `pi` on `PATH` and a loopback fake OpenAI API;

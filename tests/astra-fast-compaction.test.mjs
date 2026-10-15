@@ -8,10 +8,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-test("Astra Ultrafast compaction through Pi's native summarizer and provider", () => {
+test("Astra Fast compaction through Pi's native summarizer and provider", () => {
 	const root = mkdtempSync(path.join(tmpdir(), "pi-astra-compaction-"));
 	try {
-		const fixture = fileURLToPath(new URL("./fixtures/astra-ultrafast-compaction.ts", import.meta.url));
+		const fixture = fileURLToPath(new URL("./fixtures/astra-fast-compaction.ts", import.meta.url));
 		const result = spawnSync("pi", [
 			"--offline", "--no-extensions", "--no-skills", "--no-prompt-templates",
 			"--no-themes", "--no-context-files", "--no-session", "--no-tools",
