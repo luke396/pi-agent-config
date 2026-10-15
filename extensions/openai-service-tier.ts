@@ -4,9 +4,10 @@
 // and "priority" as the same tier, and this endpoint rejects the literal "fast"
 // with HTTP 400, so request the tested spelling.
 //
-// The switch only adds or removes this override; it never rewrites a tier that
-// the model configuration already sets. That is why the command calls its off
-// state "off" instead of claiming the request is Standard.
+// The switch never edits the model configuration. While fast is on it overrides
+// the request value; while it is off, whatever the configuration sets stays in
+// effect. That is why the command calls its off state "off" instead of claiming
+// the request is Standard.
 //
 // The switch belongs to the extension runtime. Pi recreates that runtime for
 // every new, resumed or forked session, which runs the factory below again, so
