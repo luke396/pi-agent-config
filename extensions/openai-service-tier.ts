@@ -7,8 +7,10 @@
 // Ultrafast is routed by the `OpenAI-Service-Tier` header, which accepts only
 // "ultrafast" while the alpha lasts, plus the matching body field.
 //
-// The switch lives in this process only. Every session starts on "standard",
-// because silently inheriting a paid tier is the expensive mistake.
+// The switch belongs to the extension runtime. Pi recreates that runtime for
+// every new, resumed or forked session, which runs the factory below again, so
+// the tier starts on "standard" without a reset handler; silently inheriting a
+// paid tier across sessions is the expensive mistake this avoids.
 // Requests that Pi derives itself (compaction, nested model calls) do not pass
 // these hooks, so they keep their own tier.
 
@@ -84,8 +86,4 @@ export default function (pi: ExtensionAPI) {
 	// The status follows the model, so an armed tier that no longer reaches the
 	// current model is visible instead of silently inert.
 	pi.on("model_select", (_event, ctx) => updateStatus(ctx));
-	pi.on("session_start", (_event, ctx) => {
-		tier = "standard";
-		updateStatus(ctx);
-	});
 }

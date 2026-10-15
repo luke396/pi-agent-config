@@ -10,7 +10,6 @@ function fixture(model: { provider: string; id: string } = astra) {
 	let payloadHook: any;
 	let headerHook: any;
 	let modelSelect: any;
-	let sessionStart: any;
 	let command: any;
 	const ctx: any = {
 		model,
@@ -25,7 +24,6 @@ function fixture(model: { provider: string; id: string } = astra) {
 			if (name === "before_provider_request") payloadHook = handler;
 			else if (name === "before_provider_headers") headerHook = handler;
 			else if (name === "model_select") modelSelect = handler;
-			else if (name === "session_start") sessionStart = handler;
 			else throw new Error(`unexpected event: ${name}`);
 		},
 		registerCommand: (name: string, definition: any) => {
@@ -47,13 +45,11 @@ function fixture(model: { provider: string; id: string } = astra) {
 			ctx.model = next;
 			modelSelect({ type: "model_select", model: next }, ctx);
 		},
-		start: () => sessionStart({ type: "session_start" }, ctx),
 	};
 }
 
 test("standard leaves requests, headers, and status alone", () => {
 	const f = fixture();
-	f.start();
 	assert.equal(f.payload({ model: "gpt-6-astra", input: "hi" }), undefined);
 	assert.deepEqual(f.headers({}), {});
 	assert.equal(f.lastStatus(), undefined);
@@ -139,12 +135,4 @@ test("a payload that is not a request object is left alone", () => {
 	for (const payload of [undefined, null, "text", [1, 2]]) {
 		assert.equal(f.payload(payload), undefined);
 	}
-});
-
-test("a new session starts on standard", () => {
-	const f = fixture();
-	f.set("fast");
-	f.start();
-	assert.equal(f.lastStatus(), undefined);
-	assert.equal(f.payload({ model: "gpt-6-astra" }), undefined);
 });
