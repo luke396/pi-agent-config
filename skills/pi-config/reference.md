@@ -62,12 +62,13 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 - **Fast mode is a manual, per-session switch; Ultrafast stays out of it.**
   `extensions/openai-fast-mode.ts` owns `/fast` (`on` | `off`; a bare `/fast`
   reports the state without switching) and replaces the "per provider/model, not
-  a global toggle" answer for conversation turns. It keeps no footer status, so
-  its notification is the only feedback and therefore names the provider when the
-  switch cannot reach it. Its off state is called "off" because the switch
-  only adds or removes its own override: with `samplingParams.service_tier` set
-  in `models.json` the effective tier stays whatever that config asks for, so the
-  command never promises a Standard-priced request.
+  a global toggle" answer for conversation turns. A footer status (`fast` /
+  `fast (inactive)`) carries the state between commands, which is why the
+  `model_select` refresh has to stay with it. Its off state is called "off"
+  because the switch only adds or removes its own override: with
+  `samplingParams.service_tier` set in `models.json` the effective tier stays
+  whatever that config asks for, so the command never promises a Standard-priced
+  request.
   Fast is the body field `service_tier: "priority"`; the literal `"fast"` still
   returns HTTP 400 here (re-measured 2026-10-15). Session requests pass the hook,
   cache-warming replays included, because the warmer reuses the session's request

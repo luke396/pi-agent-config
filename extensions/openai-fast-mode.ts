@@ -15,10 +15,20 @@
 // Requests that Pi derives itself (compaction, nested model calls) do not pass
 // this hook, so they keep their own tier.
 
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+
+const STATUS_KEY = "fast-mode";
 
 export default function (pi: ExtensionAPI) {
 	let fast = false;
+
+	const updateStatus = (ctx: ExtensionContext) => {
+		if (!fast) {
+			ctx.ui.setStatus(STATUS_KEY, undefined);
+			return;
+		}
+		ctx.ui.setStatus(STATUS_KEY, ctx.model?.provider === "openai" ? "fast" : "fast (inactive)");
+	};
 
 	pi.on("before_provider_request", (event, ctx) => {
 		if (!fast || ctx.model?.provider !== "openai") return;
@@ -35,14 +45,12 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			if (requested) fast = requested === "on";
-
-			// The notification is this extension's only feedback, so it also has to
-			// say when the switch cannot reach the current provider.
-			const reaches = ctx.model?.provider === "openai";
-			ctx.ui.notify(
-				!fast ? "Fast mode: off" : reaches ? "Fast mode: on" : `Fast mode: on (inactive on ${ctx.model?.provider ?? "no provider"})`,
-				"info",
-			);
+			ctx.ui.notify(fast ? "Fast mode: on" : "Fast mode: off", "info");
+			updateStatus(ctx);
 		},
 	});
+
+	// The status follows the model, so a switch that no longer reaches the
+	// current provider is visible instead of silently inert.
+	pi.on("model_select", (_event, ctx) => updateStatus(ctx));
 }

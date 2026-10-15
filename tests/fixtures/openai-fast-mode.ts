@@ -66,7 +66,7 @@ export default async function (pi: ExtensionAPI) {
 				const notices: string[] = [];
 				await setFast(state, {
 					model: ctx.model,
-					ui: { notify: (message: string) => notices.push(message) },
+					ui: { notify: (message: string) => notices.push(message), setStatus: () => {} },
 				} as never);
 				assert.deepEqual(notices, [state === "on" ? "Fast mode: on" : "Fast mode: off"]);
 				await pi.sendUserMessage("Reply with the single word ok.", { triggerTurn: true });
