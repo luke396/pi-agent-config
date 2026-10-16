@@ -158,8 +158,8 @@ export default function settingsSync(pi: ExtensionAPI) {
   });
 }
 
-// setup.sh uses this same file for initialization. Importing the extension
-// only registers handlers and never runs a Git operation.
+// setup.sh and Git hooks use this file for initialization and maintenance.
+// Importing the extension only registers handlers and never runs a Git operation.
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try { await prepare(); }
   catch (error) { console.error((error as Error).message); process.exitCode = 1; }

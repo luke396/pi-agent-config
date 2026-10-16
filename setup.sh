@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Bring this config's packages in line with settings.json. Run once on a new
-# machine (Node.js >=22.19 on PATH); .githooks/ runs it after pulls.
+# Initialize this checkout's settings filter and Git hooks. Run explicitly once
+# on a new machine (Git, Bash and Node.js >=22.19 on PATH).
+# Git hooks call extensions/settings-sync.ts directly after merges/rewrites.
+# Package upgrades are explicit: pi update --extensions.
 # Use ordinary Git commands. Pi saves machine fields on session start/end.
 # Default provider/model are machine-local; save them with /model (Ctrl+S).
 # When upgrading from synced defaults, reselect once after the first pull.
@@ -14,10 +16,10 @@
 # Stop Pi and privately back up an existing agent directory before replacement.
 # Restore needed machine-local files/settings before setup; do not force-checkout
 # over existing settings. PI_CODING_AGENT_DIR, if set, must point to this checkout.
-# Setup replaces core.hooksPath; check package-update warnings even if it says done.
+# Setup replaces core.hooksPath.
 #
 # A conflict in settings.json is resolved by taking one side and finishing the
-# pull (git rebase --continue); the post-rewrite hook re-runs this script.
+# pull (git rebase --continue); the post-rewrite hook refreshes settings sync.
 # Credentials are out of scope: authenticate per machine with /login.
 set -euo pipefail
 
@@ -26,14 +28,7 @@ cd "$REPO_DIR"
 
 node "$REPO_DIR/extensions/settings-sync.ts"
 
-# Git already runs hooks from the worktree root, so this matters for manual runs.
+# Install the maintenance hooks for this checkout.
 git config core.hooksPath .githooks
-
-if ! command -v pi >/dev/null 2>&1; then
-    echo "warning: pi not on PATH, skipping package sync; re-run after installing pi."
-else
-    # Materializes and reconciles the npm:/git: packages declared in settings.json.
-    pi update --extensions || echo "warning: pi update --extensions failed, re-run manually later."
-fi
 
 echo "done."

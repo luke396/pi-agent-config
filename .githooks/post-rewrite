@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec "$(git rev-parse --show-toplevel)/setup.sh"
+exec node "$(git rev-parse --show-toplevel)/extensions/settings-sync.ts"

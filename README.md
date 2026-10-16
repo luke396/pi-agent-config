@@ -101,13 +101,17 @@ Review personal instructions before reusing them: the final section of
 
 ## Syncing my machines
 
-The agent directory is a normal Git checkout at `~/.pi/agent`. `setup.sh` is a
-bootstrap convenience requiring Git, Bash, Node.js >=22.19, and Pi on `PATH` for
-package updates. It prepares the settings filter, sets `core.hooksPath` to
-`.githooks` (replacing any previous value), and runs `pi update --extensions`.
-Pi also prepares the filter at session start; the Git hooks rerun setup after
-merges and rebases. Package references are unpinned, and updates can install
-newer code and run dependency scripts. Check warnings even when setup says done.
+The agent directory is a normal Git checkout at `~/.pi/agent`. Run `setup.sh`
+explicitly to initialize settings sync and install the Git hooks. It requires
+Git, Bash, and Node.js >=22.19 on `PATH`, but does not launch Pi. It prepares the
+settings filter and sets `core.hooksPath` to `.githooks`, replacing any previous
+value. The hooks call `extensions/settings-sync.ts` directly after merges and
+rewrites; they do not rerun setup. Pi also prepares the filter at session start.
+
+Neither setup nor the Git hooks install or update packages. Normal online Pi
+startup installs missing configured packages. Run `pi update --extensions`
+explicitly to upgrade existing packages. Package references are unpinned, so
+installation and updates can fetch newer code and run dependency scripts.
 
 New-machine steps and the first-login caveat are in the [setup header](setup.sh).
 Back up existing configuration before replacement; do not force-checkout over
@@ -122,7 +126,7 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.2.0: **79 offline tests passed**. The suite
+Verified with Node.js 26.7.0 and Pi 1.2.0: **81 offline tests passed**. The suite
 uses temporary Git fixtures and fake providers:
 
 ```sh
@@ -134,7 +138,7 @@ The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
 loopback fake OpenAI APIs; they also work with the standalone distribution.
 No live credentials are used.
 
-The rules integration test is separate from the 79-test run above. It needs an
+The rules integration test is separate from the 81-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
 does not supply those importable modules.
 

@@ -21,8 +21,9 @@ function fixture(t) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const bin = path.join(root, "bin");
   mkdirSync(bin);
-  // Package updates are outside this boundary; never launch the live Pi.
-  writeFileSync(path.join(bin, "pi"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+  // Record forbidden Pi invocations without launching the live application.
+  const piCalls = path.join(bin, "pi.calls");
+  writeFileSync(path.join(bin, "pi"), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$0.calls"\n', { mode: 0o755 });
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
   Object.assign(env, {
     PATH: bin + path.delimiter + process.env.PATH,
@@ -65,7 +66,7 @@ function fixture(t) {
     git(dir, "commit", "-m", message);
   };
   save(a, initial);
-  return { root, a, env, run, git, save, read, prepare, extension, setup, commit };
+  return { root, a, env, run, git, save, read, prepare, extension, setup, commit, piCalls };
 }
 
 function twoMachines(t) {
@@ -91,6 +92,8 @@ test("setup preserves live and staged settings; commits contain only portable va
   const staged = f.git(f.a, "diff", "--cached");
   f.setup(f.a);
   f.setup(f.a);
+  assert.equal(existsSync(f.piCalls), false, "setup must not invoke Pi");
+  assert.equal(f.git(f.a, "config", "--get", "core.hooksPath").trim(), ".githooks");
   assert.equal(readFileSync(path.join(f.a, "settings.json"), "utf8"), before);
   assert.equal(f.git(f.a, "diff", "--cached"), staged);
 
@@ -114,6 +117,25 @@ test("setup preserves live and staged settings; commits contain only portable va
   f.prepare(f.a);
   assert.equal(f.git(f.a, "status", "--porcelain"), "");
 });
+
+for (const [hook, argument] of [["post-merge", "0"], ["post-rewrite", "rebase"]]) {
+  test(`${hook} prepares sync without setup or package updates`, t => {
+    const f = fixture(t);
+    f.setup(f.a);
+    f.commit(f.a, "Initial");
+    // Maintenance must work without re-entering the bootstrap script.
+    rmSync(path.join(f.a, "setup.sh"));
+    rmSync(path.join(f.a, ".git-sync/filter.mjs"));
+    f.save(f.a, { ...initial, deviceId: "updated-device" });
+    f.git(f.a, "hook", "run", hook, "--", argument);
+    assert.equal(existsSync(path.join(f.a, ".git-sync/filter.mjs")), true);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(f.a, ".git-sync/settings.machine.json"), "utf8")), {
+      deviceId: "updated-device", lastChangelogVersion: initial.lastChangelogVersion,
+    });
+    assert.equal(f.git(f.a, "diff", "--", "settings.json"), "");
+    assert.equal(existsSync(f.piCalls), false, "hooks must not invoke Pi");
+  });
+}
 
 test("ordinary Git pull preserves each machine's fields after Pi session start", t => {
   const f = twoMachines(t);
@@ -353,7 +375,7 @@ test("upgrade from the retired tracked filter preserves local values", t => {
     f.git(f.a, "config", key, old);
   }
   // A raw pull can delete the retired program before settings are checked out.
-  // The new post-merge setup must recover the saved fields before refreshing.
+  // The post-merge hook must recover the saved fields before refreshing.
   f.git(f.a, "pull", "--ff-only");
   assert.equal(f.read(f.a).theme, "upgraded");
   assert.equal(f.read(f.a).deviceId, "device-a-new-login");
