@@ -1,7 +1,7 @@
 # Evolving session titles
 
-Original, dependency-free extension for **Pi 1.0.3**. It only changes the native
-session name (`pi.setSessionName`); Pi keeps its native header and footer, and
+Original, dependency-free Pi extension. It only changes the native session name
+(`pi.setSessionName`); Pi keeps its native header and footer, and
 pi-vim keeps the editor.
 
 After a completed interactive conversation, an unnamed session gets a short
@@ -23,10 +23,11 @@ PI_AUTO_TITLE_COOLDOWN_MS=600000 pi
 The model value is `provider/model-id` (model IDs may contain `/`). Cooldown is a
 finite nonnegative number of milliseconds. Invalid values disable requests.
 No config or credential file is read directly or written by this extension.
-Pi's model registry resolves the configured model and its authentication. With
-ChatGPT OAuth, requests use subscription allowance; API-key authentication uses
-API billing. Naming calls are currently **not included in Pi's footer or
-`/session` token totals**; consult the provider's usage view.
+The configured model must be a chat model. Pi's model registry resolves it and
+its authentication. Depending on the provider and model, requests can consume
+subscription allowance or API credit. Naming calls are currently **not included
+in Pi's footer or `/session` token totals**; consult the provider's usage view.
+Version-specific verification is recorded below.
 
 - At most 8 recent user/assistant text messages, 1,200 UTF-16 code units each and
   6,000 total, from Pi's active projected context (honoring compaction/context
@@ -76,7 +77,9 @@ If a provider ignores abort, its lane stays occupied until it settles: `/now`
 will not launch overlapping work. Its late result cannot rename the session.
 Shutdown clears the deadline timer; no scheduler remains.
 
-## Offline verification
+## Verification
+
+### Offline checks
 
 From the repository root, using Node 26.7.0's native TypeScript support:
 
@@ -84,9 +87,19 @@ From the repository root, using Node 26.7.0's native TypeScript support:
 node --test tests/session-title.test.ts
 ```
 
-The 45 tests wire the actual extension factory to a minimal Pi fake, with
-deferred providers and mocked time. They make **no provider requests**. API
-contracts were checked against installed 1.0.3 docs and the official `v1.0.3`
+All 45 tests passed. They wire the actual extension factory to a minimal Pi
+fake, with deferred providers and mocked time, and make **no provider requests**.
+The fake models Pi 1.2.0's retained entry-data references, session-global names,
+projected context, and delayed name events.
+
+A separate offline check with a clean Pi 1.2.0 agent directory resolved the
+default `openai/gpt-6-luna` through `modelRegistry.find()` as `type: "chat"`,
+`api: "openai-responses"`. This verifies catalog registration only. Live naming,
+ChatGPT OAuth, and TUI behavior have not been rechecked on Pi 1.2.0.
+
+### Historical integration check — Pi 1.0.3
+
+Original API contract checks used the installed 1.0.3 docs and official `v1.0.3`
 source, especially `session_info_changed`, `agent_settled`, session-global names
 and `ctx.modelRegistry.streamSimple(...).result()`.
 

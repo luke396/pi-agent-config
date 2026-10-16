@@ -13,10 +13,12 @@ working principles, task-specific skills, local extensions, and package choices.
 | Learning | [learn-from-work](skills/learn-from-work/SKILL.md): explore durable technical questions through conversation. |
 | Research and recall | [community-research](skills/community-research/SKILL.md) and [agent-history](skills/agent-history/SKILL.md). |
 | Visual explanations | [show-me](skills/show-me/SKILL.md), invoked explicitly and adapted from HumanLayer. |
-| Session naming | [session-title](extensions/session-title/README.md): evolving titles with manual ownership and bounded requests. |
+| Session naming | [session-title](extensions/session-title/README.md): evolving titles with manual ownership and bounded extra requests to a dedicated chat model. |
 | Project rules | [claude-rules.ts](extensions/claude-rules.ts): advertise `.claude/rules/**/*.md` for selective loading. |
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
-| Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab, paired with [keybindings.json](keybindings.json). |
+| Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab; clear the native thinking shortcut as in [keybindings.json](keybindings.json). |
+| Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable bubbles and animations; requires loaded pi-libtui, bundled here by `@luan.sh/pi-collapse-transcript`. |
+| Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): `/fast on` and `/fast off` for conversation requests on the `openai` provider. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 
@@ -43,6 +45,20 @@ session; omit or disable the extension to avoid these calls altogether.
 History-based skills require a separately configured `agent-history` CLI and
 archive. Provider accounts, web search, and remote MCP have their own setup and
 data flows; this repo does not provision them.
+
+## OpenAI Fast mode
+
+`/fast on` requests Fast (`service_tier: "priority"`) for conversation requests
+on the `openai` provider, including their cache-warming replays. `/fast` reports
+the state without changing it. The switch starts off in each new, resumed, or
+forked session and is inactive on other providers.
+
+`/fast off` removes only this extension's override: a tier set in local
+`models.json` remains in effect, so off does not guarantee Standard pricing.
+Compaction and extension-initiated calls keep their own settings.
+
+Fast can consume more allowance or cost more. Pi's displayed cost may not
+reflect this override; check provider usage for billing.
 
 ## Astra compaction
 
@@ -73,8 +89,12 @@ the body, absence of the Ultrafast header, and unchanged normal requests.
 Copy skills as whole directories, keeping supporting files and license notices.
 Copy chosen extensions into `~/.pi/agent/extensions/` and reload Pi, or try one
 with `pi -e /path/to/extension.ts`. Keep `session-title` as a directory and adapt
-keybindings alongside the thinking toggle. Individual components do not require
-running this repository's setup script.
+keybindings alongside the thinking toggle. Skills and non-sync extensions can be
+reused without running this repository's setup script.
+
+For this repository's settings-sync workflow, keep [.gitattributes](.gitattributes),
+[.githooks/](.githooks/), [setup.sh](setup.sh), and [.gitignore](.gitignore) with the
+extension and follow [Syncing my machines](#syncing-my-machines).
 
 Review personal instructions before reusing them: the final section of
 `AGENTS.md` names this repository and requires committing/pushing config edits.
@@ -102,8 +122,8 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.2.0. Offline tests use temporary Git fixtures
-and fake providers:
+Verified with Node.js 26.7.0 and Pi 1.2.0: **79 offline tests passed**. The suite
+uses temporary Git fixtures and fake providers:
 
 ```sh
 node --test tests/settings-sync.test.mjs tests/*.test.ts \
@@ -114,16 +134,17 @@ The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
 loopback fake OpenAI APIs; they also work with the standalone distribution.
 No live credentials are used.
 
-The rules integration test additionally needs an npm-installed Pi on `PATH` exposing
-`dist/core`. The standalone Pi distribution does not supply those importable
-modules.
+The rules integration test is separate from the 79-test run above. It needs an
+npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
+does not supply those importable modules.
 
 ```sh
 node --test tests/claude-rules.test.mjs
 ```
 
-These tests make no live model calls and do not verify live naming quality or all
-third-party packages and platforms.
+These tests make no live model calls. They do not verify live naming quality,
+fresh online package installation, or compatibility with all third-party
+packages and platforms.
 
 ## License
 

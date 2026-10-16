@@ -51,37 +51,35 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 
 ## Models and local extensions
 
-- **Fast is an opt-in per provider/model, not a global toggle.**
-  `pi-codex-fast-mode` remains uninstalled. For `openai`, local `models.json`
-  overrides can carry `samplingParams.service_tier`; no injection extension is
-  needed. In a 2026-10-01 ChatGPT OAuth check, `"fast"` was rejected with HTTP
-  400, while `"priority"` completed successfully. The response still reported
-  `"default"`, so this verified the requested setting and compatibility, not
-  actual acceleration. Keep that distinction when reporting success. Subagent
-  children can also request priority through pi-subagents' own fast hook.
 - **Fast mode is a manual, per-session switch; Ultrafast stays out of it.**
   `extensions/openai-fast-mode.ts` owns `/fast` (`on` | `off`; a bare `/fast`
-  reports the state without switching) and replaces the "per provider/model, not
-  a global toggle" answer for conversation turns. A footer status (`fast` /
-  `fast (inactive)`) carries the state between commands, which is why the
-  `model_select` refresh has to stay with it. Its off state is called "off"
-  because the switch only adds or removes its own override: with
-  `samplingParams.service_tier` set in `models.json` the effective tier stays
-  whatever that config asks for, so the command never promises a Standard-priced
-  request.
-  Fast is the body field `service_tier: "priority"`; the literal `"fast"` still
-  returns HTTP 400 here (re-measured 2026-10-15). Session requests pass the hook,
-  cache-warming replays included, because the warmer reuses the session's request
-  options; compaction and extension-initiated nested calls build their own options
-  and keep the tier they set. The Astra compaction extension independently requests
-  Fast (`priority`); neither local extension adds the Ultrafast
-  `OpenAI-Service-Tier` header.
-  Pi's cost display does not reflect the override: the tier it multiplies comes
-  from pi's own stream option or the server echo — `buildBaseOptions` never sets
-  `serviceTier`, and this endpoint echoes `default` — so the shown amount is
-  computed as if the tier were unset; if the server does bill Fast, it is low.
+  reports the state without switching) for conversation requests on `openai`.
+  A footer status (`fast` / `fast (inactive)`) carries the state between commands,
+  which is why the `model_select` refresh has to stay with it. The switch only
+  adds or removes its own override: with `samplingParams.service_tier` set in
+  machine-local `models.json`, that configured tier remains in effect when the
+  switch is off. The command never promises a Standard-priced request.
+  Fast is the body field `service_tier: "priority"`. Session requests pass the
+  hook, cache-warming replays included, because the warmer reuses the session's
+  request options; compaction and extension-initiated nested calls build their
+  own options and keep the tier they set. The Astra compaction extension
+  independently requests Fast (`priority`); neither local extension adds the
+  Ultrafast `OpenAI-Service-Tier` header. Subagent children can also request
+  priority through pi-subagents' own fast hook.
+  Pi's cost display does not reflect the override on the checked endpoint: the
+  tier it multiplies comes from pi's own stream option or the server echo —
+  `buildBaseOptions` never sets `serviceTier`, and this endpoint echoes
+  `default` — so the shown amount is computed as if the tier were unset; if the
+  server does bill Fast, it is low.
   Fast starts off in every new, resumed or forked session, because pi recreates
-  the extension runtime and runs the factory again.
+  the extension runtime and runs the factory again. `pi-codex-fast-mode` remains
+  uninstalled.
+- **Tier spelling was checked on this account.** In a 2026-10-01 ChatGPT OAuth
+  check, `"fast"` was rejected with HTTP 400, while `"priority"` completed
+  successfully. The response still reported `"default"`, so this verified the
+  requested setting and compatibility, not actual acceleration. The literal
+  `"fast"` rejection was re-measured on 2026-10-15. Keep those conditions when
+  reporting success.
 - **Tracked local extensions are deliberate, not accidents.**
   `keybindings.json` clears pi's built-in thinking cycle (`app.thinking.cycle`)
   so `extensions/thinking-toggle.ts` is the only thinking control: Shift+Tab
