@@ -30,8 +30,11 @@ Keep already-covered patterns in the findings. Separate missing guidance from
 poor execution, skill activation problems, and rules that have since been fixed.
 Before declaring a gap, follow relevant references in the existing guidance
 and check their coverage of the candidate.
-When attributing an effect to an instruction, check the version actually loaded
-where evidence permits; today's file does not describe an older live session.
+Separate current coverage, actual loading and observed behavior. When loading
+evidence would change the disposition, check archived calls or injected
+instructions. For claims about an instruction's effect, verify the version
+actually loaded where possible; today's file does not describe an older live
+session. Loading alone does not establish compliance or improvement.
 Look for later revisions and counterexamples before generalizing a preference.
 
 Describe the recurring decision or reusable workflow and what, if anything,

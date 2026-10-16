@@ -31,6 +31,8 @@ concrete reason for additional review rounds.
   explicit parameters or live reads for that contract, not for uniformity.
 - Distinguish source-established facts, reasoned expectations and measured
   results. Scope performance claims to the phase and workload actually measured.
+  When judging an approach, distinguish its necessary work from avoidable
+  implementation overhead.
 
 # Testing
 
