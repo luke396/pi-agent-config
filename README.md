@@ -49,7 +49,7 @@ data flows; this repo does not provision them.
 The local extension requests Fast (`service_tier: "priority"`) for manual and
 automatic compaction of `openai/gpt-6-astra`. It sends no
 `OpenAI-Service-Tier` header; that header is reserved for Ultrafast.
-Normal conversation (including its separate `/tier` choice), other models,
+Normal conversation (including its separate `/fast` choice), other models,
 branch summaries, and the selected thinking level are unchanged. It reuses Pi's
 native summarizer, retained-history boundary, file tracking, usage accounting,
 and retry policy. The old `astraUltrafast` details marker is intentionally kept
@@ -102,15 +102,17 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.1.0. Offline tests use temporary Git fixtures
+Verified with Node.js 26.7.0 and Pi 1.2.0. Offline tests use temporary Git fixtures
 and fake providers:
 
 ```sh
-node --test tests/settings-sync.test.mjs tests/*.test.ts tests/astra-fast-compaction.test.mjs
+node --test tests/settings-sync.test.mjs tests/*.test.ts \
+  tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs
 ```
 
-The Astra test uses the installed `pi` on `PATH` and a loopback fake OpenAI API;
-it also works with the standalone distribution. No live credentials are used.
+The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
+loopback fake OpenAI APIs; they also work with the standalone distribution.
+No live credentials are used.
 
 The rules integration test additionally needs an npm-installed Pi on `PATH` exposing
 `dist/core`. The standalone Pi distribution does not supply those importable

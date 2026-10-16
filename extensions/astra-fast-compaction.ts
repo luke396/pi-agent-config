@@ -23,13 +23,12 @@ export default function (pi: ExtensionAPI) {
 		if (model?.provider !== "openai" || model.id !== "gpt-6-astra") return;
 
 		try {
-			event.signal.throwIfAborted();
 			const settings = SettingsManager.inMemory(pi.getSettings());
 			const providerRetry = settings.getProviderRetrySettings();
 			const timeoutMs = providerRetry.timeoutMs ?? (settings.getHttpIdleTimeoutMs() || 2147483647);
 
 			// Default compaction bypasses before_provider_request. Reuse its native
-			// summarizer and set the tier on these requests only, after payload conversion.
+			// summarizer and set the tier through request-scoped sampling parameters.
 			const result = await compact(
 				event.preparation,
 				model,
@@ -44,7 +43,7 @@ export default function (pi: ExtensionAPI) {
 					timeoutMs,
 					websocketConnectTimeoutMs: settings.getWebSocketConnectTimeoutMs(),
 					// Fast uses the body only; OpenAI-Service-Tier is reserved for Ultrafast.
-					onPayload: (payload) => ({ ...(payload as Record<string, unknown>), service_tier: "priority" }),
+					samplingParams: { service_tier: "priority" },
 					onProviderStreamEvent: (data) => {
 						const response = data as { type: string; response?: { service_tier?: string } };
 						const tier = response.response?.service_tier;

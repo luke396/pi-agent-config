@@ -73,8 +73,9 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   returns HTTP 400 here (re-measured 2026-10-15). Session requests pass the hook,
   cache-warming replays included, because the warmer reuses the session's request
   options; compaction and extension-initiated nested calls build their own options
-  and keep the tier they set, so Ultrafast requests and their
-  `OpenAI-Service-Tier` header belong to the compaction extension alone.
+  and keep the tier they set. The Astra compaction extension independently requests
+  Fast (`priority`); neither local extension adds the Ultrafast
+  `OpenAI-Service-Tier` header.
   Pi's cost display does not reflect the override: the tier it multiplies comes
   from pi's own stream option or the server echo — `buildBaseOptions` never sets
   `serviceTier`, and this endpoint echoes `default` — so the shown amount is

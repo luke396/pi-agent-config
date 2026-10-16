@@ -154,7 +154,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 				}, { signal: job.controller.signal, maxTokens: 2048, reasoning: "low", timeoutMs: DEADLINE_MS, maxRetries: 0 }).result();
 				if (pending !== job || job.controller.signal.aborted || !current(ctx)) return;
 				reconcile(ctx); // The name may have changed while another event handler was awaiting.
-				if (job.controller.signal.aborted || state!.mode !== "auto" || recentInput(ctx) !== input) return;
+				if (job.controller.signal.aborted || recentInput(ctx) !== input) return;
 				const title = parseTitle(response);
 				lastResult = "KEEP or invalid response; title preserved";
 				if (!title || title === pi.getSessionName()) return;

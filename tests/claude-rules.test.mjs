@@ -58,7 +58,7 @@ async function load(extensionPaths) {
 }
 
 async function turn({ runner, extensionErrors }, codemodeOnly = false) {
-	const { systemPromptOptions } = await runner.emitBeforeAgentStart("hi", undefined, {
+	const { systemPromptOptions } = await runner.emitBeforeAgentStart({ messageType: "user", prompt: "hi", images: undefined }, {
 		cwd,
 		selectedTools: codemodeOnly ? ["codemode", "read", "bash"] : ["read", "bash"],
 		hiddenTools: codemodeOnly ? ["read", "bash"] : [],

@@ -12,8 +12,8 @@ function deferred() {
 	return { promise, resolve, reject };
 }
 
-// Mirrors Pi 1.0.3: file-global names, branch/projected context, and fire-and-forget
-// session_info_changed dispatch which may be delayed by earlier async handlers.
+// Mirrors Pi 1.2.0: retained data references, file-global names, branch/projected
+// context, and fire-and-forget name events delayed by earlier async handlers.
 function fake(options: { entries?: any[]; mode?: string; delayNameEvents?: Promise<any> } = {}) {
 	let sequence = 1000;
 	let entries = structuredClone(options.entries ?? []);
@@ -52,7 +52,7 @@ function fake(options: { entries?: any[]; mode?: string; delayNameEvents?: Promi
 	const pi: any = {
 		on: (event: string, handler: Function) => { (handlers[event] ??= []).push(handler); },
 		registerCommand: (name: string, command: any) => { commands[name] = command; },
-		appendEntry: (customType: string, data: any) => append({ type: "custom", customType, data: structuredClone(data) }),
+		appendEntry: (customType: string, data: any) => append({ type: "custom", customType, data }),
 		getSessionName: getName,
 		setSessionName: (name: string) => {
 			append({ type: "session_info", name });
@@ -95,11 +95,14 @@ test("first name uses dedicated model, stable topic KEEP, then material topic ch
 	assert.equal(f.calls[0].config.maxTokens, 2048);
 	assert.equal(f.calls[0].config.reasoning, "low");
 	assert.match(f.calls[0].context.systemPrompt, /untrusted/);
+	const firstMarker = f.state();
+	const firstSnapshot = structuredClone(firstMarker);
 	t.mock.timers.tick(600_000);
 	f.provider(keep); f.turn("继续分析 IP", "进一步分析");
 	await f.emit("agent_settled"); await flush();
 	assert.equal(f.getName(), "首个主题");
 	assert.equal(JSON.parse(f.calls[1].context.messages[0].content).previousTitle, "首个主题");
+	assert.deepEqual(firstMarker, firstSnapshot, "later attempts must not mutate earlier state entries");
 	f.provider(() => response("Pi 配置"));
 	f.turn("转到 Pi 配置", "配置已说明");
 	await f.emit("agent_settled"); assert.equal(f.calls.length, 2, "KEEP consumes cooldown");
