@@ -143,7 +143,7 @@ uses temporary Git fixtures, fake providers, and native transcript components:
 ```sh
 node --test tests/settings-sync.test.mjs tests/*.test.ts \
   tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs \
-  tests/visible-tool-images.test.mjs tests/collapse-transcript.test.mjs
+  tests/collapse-transcript.test.mjs
 ```
 
 The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and

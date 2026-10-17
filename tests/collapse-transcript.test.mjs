@@ -1,4 +1,4 @@
-// Inherited upstream tests, exercised through the installed Pi without model calls.
+// Folding and image contracts, exercised through the installed Pi without model calls.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
@@ -11,6 +11,7 @@ for (const [name, fixture, command, marker] of [
 	["native grouping, disclosure, timing and mouse contracts", "collapse-transcript", "test-collapse-transcript", "COLLAPSE_TRANSCRIPT_TESTS_PASSED"],
 	["queued and steering request boundaries", "collapse-queued-request", "test-collapse-queued-request", "COLLAPSE_QUEUED_TESTS_PASSED"],
 	["compaction retains display history across resume", "collapse-compaction", "test-collapse-compaction", "COLLAPSE_COMPACTION_TESTS_PASSED"],
+	["tool images remain visible with collapsed activity", "visible-tool-images", "test-visible-images", "VISIBLE_TOOL_IMAGES_TESTS_PASSED"],
 ]) {
 	test(name, () => {
 		const root = mkdtempSync(path.join(tmpdir(), "pi-collapse-test-"));

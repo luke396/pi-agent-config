@@ -1,27 +1,16 @@
-import type { Component } from "@earendil-works/pi-tui";
+import { Container, Image, Spacer } from "@earendil-works/pi-tui";
 import type { TranscriptEntry } from "../../npm/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
 
-function component(value: unknown): value is Component {
-	return value !== null && typeof value === "object" &&
-		typeof (value as Component).render === "function" && typeof (value as Component).invalidate === "function";
-}
-
-/**
- * Pi 1.3's native tool-image boundary. Borrow existing Image/spacer instances so
- * Pi retains image settings, Kitty IDs, async conversion and invalidation.
- * Read live arrays: these can change without a new result or transcript entry.
- * Unknown native shapes retain the ordinary expanded tool renderer.
- */
+/** Borrow Pi's direct native image children and their spacers, read fresh each render. */
 export function renderToolImages(entries: readonly TranscriptEntry[], width: number): string[] {
 	const lines: string[] = [];
 	for (const entry of entries) {
-		if (entry.kind !== "tool") continue;
-		const tool = entry.component as unknown as Record<string, unknown>;
-		if (!Array.isArray(tool.imageComponents) || !tool.imageComponents.every(component) ||
-			!Array.isArray(tool.imageSpacers) || !tool.imageSpacers.every(component)) continue;
-		for (const [index, image] of tool.imageComponents.entries()) {
-			const spacer = tool.imageSpacers[index];
-			if (spacer) lines.push(...spacer.render(width));
+		if (entry.kind !== "tool" || !(entry.component instanceof Container)) continue;
+		const children = entry.component.children;
+		for (const [index, image] of children.entries()) {
+			if (!(image instanceof Image)) continue;
+			const spacer = children[index - 1];
+			if (spacer instanceof Spacer) lines.push(...spacer.render(width));
 			lines.push(...image.render(width));
 		}
 	}

@@ -35,10 +35,12 @@ managed directory. Copy this directory with the package declaration; no local
 Normal online Pi startup installs missing declared packages; `pi update --extensions`
 reconciles them explicitly.
 
-Pi 1.3's private `imageComponents` / `imageSpacers` access is isolated in
-[native-tool-images.ts](native-tool-images.ts). Unknown shapes produce no extra
-preview; the expanded native view remains available. Native instances continue
-to own image settings, IDs, conversion and invalidation.
+Pi 1.3's native image selection is isolated in
+[native-tool-images.ts](native-tool-images.ts). It borrows direct `Image` children
+and their preceding `Spacer` from the native `Container`; it does not inspect
+private image arrays or walk into tool-detail renderers. Other shapes produce no
+extra preview; the expanded native view remains available. Native instances
+continue to own image settings, IDs, conversion and invalidation.
 
 ## Baseline and maintenance
 
@@ -58,7 +60,7 @@ inside the installed Pi, including standalone distributions.
 From the agent repository:
 
 ```sh
-node --test tests/collapse-transcript.test.mjs tests/visible-tool-images.test.mjs
+node --test tests/collapse-transcript.test.mjs
 ```
 
 After a Pi/libtui upgrade, also check actual TUI history restoration, `/reload`,

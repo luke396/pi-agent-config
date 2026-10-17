@@ -38,9 +38,10 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   imports it from Pi's managed npm tree: bare third-party imports from a local
   extension do not search `agent/npm/node_modules`. No local dependency install
   script or second copy of the TUI library is needed.
-- **The remaining private image access is isolated.**
-  The fork borrows native Image/spacer instances so Pi owns settings, IDs and
-  conversion. Unknown shapes retain the expanded native view. After upgrading
+- **Native image selection is isolated.**
+  The fork borrows direct Image children and preceding spacers from the native
+  Container, without inspecting private image arrays. Pi owns settings, IDs and
+  conversion. Other shapes retain the expanded native view. After upgrading
   Pi/libtui, run the folding/image tests and check actual history restoration,
   `/reload`, mouse expansion and pi-vim; component-only tests do not establish
   extension startup ordering. Fork provenance and maintenance notes live in

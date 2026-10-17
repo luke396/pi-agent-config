@@ -102,10 +102,13 @@ export default function (pi: ExtensionAPI) {
 				assert.doesNotMatch(plain(growing.render()), /private earlier output|private tool details/);
 
 				// Native settings and widths may change without a new result/entry.
-				const nativeImage = (tool as any).imageComponents[0];
+				const kittyId = (rows: string[]) => rows.join("\n").match(/\x1b_G[^;]*\bi=(\d+)/)?.[1];
+				const nativeImageId = kittyId(tool.render(80));
+				assert.ok(nativeImageId, "native image has a Kitty ID");
 				for (const width of [8, 30, 120]) {
-					assert.equal(imageCount(f.render(width)), 1);
-					assert.equal((tool as any).imageComponents[0], nativeImage, "borrow, do not recreate the native image");
+					const rows = f.render(width);
+					assert.equal(imageCount(rows), 1);
+					assert.equal(kittyId(rows), nativeImageId, "folded preview must retain the native image ID");
 				}
 				tool.setShowImages(false);
 				assert.equal(imageCount(f.render()), 0);
@@ -168,6 +171,14 @@ export default function (pi: ExtensionAPI) {
 				assert.equal(imageCount(conversion.render()), 1, "converted image must appear without unfolding or a new tool result");
 				conversion.click();
 				assert.equal(imageCount(conversion.render()), 1);
+
+				// Regression: folded images must not inherit ToolActivity's 520-row clip.
+				const many = fixture();
+				const manyTool = many.tool();
+				manyTool.updateResult({ content: Array.from({ length: 270 }, () => png), isError: false });
+				assert.equal(imageCount(manyTool.render(80)), 270, "native many-image setup");
+				assert.equal(imageCount(many.render()), 270, "all 270 original images remain visible while folded");
+				assert.match(plain(many.render()), /1 step/);
 
 				// Removing the projection restores native tool rows, including their images.
 				f.unmount();
