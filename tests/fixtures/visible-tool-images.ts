@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { AssistantMessageComponent, initTheme, ToolExecutionComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { AssistantMessageComponent, initTheme, SessionManager, ToolExecutionComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Container, ProcessTerminal, Text, TuiAltScreen, TuiMainScreen, getCapabilities, setCapabilities, stripTerminalSequences } from "@earendil-works/pi-tui";
-import { ActivityTranscript } from "../../npm/node_modules/@luan.sh/pi-collapse-transcript/src/activity-transcript.ts";
-import { configureTuiAppearance } from "../../npm/node_modules/@luan.sh/pi-collapse-transcript/node_modules/@luan.sh/pi-libtui/src/index.ts";
-import { mountTranscriptProjection } from "../../npm/node_modules/@luan.sh/pi-collapse-transcript/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
+import { ActivityTranscript } from "../../extensions/collapse-transcript/activity-transcript.ts";
+import transcriptExtension from "../../extensions/collapse-transcript/index.ts";
+import { configureTuiAppearance } from "../../npm/node_modules/@luan.sh/pi-libtui/src/index.ts";
+import { mountTranscriptProjection } from "../../npm/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
 
 const png = { type: "image" as const, mimeType: "image/png", data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aC1sAAAAASUVORK5CYII=" };
 const result = () => ({ content: [{ type: "text" as const, text: "private tool details" }, png], isError: false });
@@ -13,16 +14,14 @@ const plain = (lines: string[]) => lines.map(stripTerminalSequences).join("\n");
 export default function (pi: ExtensionAPI) {
 	pi.registerCommand("test-visible-images", {
 		description: "Offline native transcript image assertions",
-		handler: async (args, ctx) => {
+		handler: async (_args, ctx) => {
 			const capabilities = getCapabilities();
 			const releases: (() => void)[] = [];
 			try {
 				initTheme("dark", false);
 				setCapabilities({ ...capabilities, images: "kitty" });
 				configureTuiAppearance({ activityIndicator: "static", textEffect: "off", pulseEffect: "off" });
-				const adapter = args.trim() === "baseline" ? undefined : await import("../../extensions/visible-tool-images.ts");
-				const install = adapter?.installImagePreviews ?? (() => () => {});
-				function fixture(mode = "fullscreen", adapt = true) {
+				function fixture(mode = "fullscreen", project = true) {
 					const tui = mode === "fullscreen" ? new TuiAltScreen(new ProcessTerminal()) : new TuiMainScreen(new ProcessTerminal());
 					tui.requestRender = () => {};
 					const document = new Container();
@@ -32,15 +31,16 @@ export default function (pi: ExtensionAPI) {
 					document.addChild(chat);
 					tui.addChild(document);
 					let projection!: ActivityTranscript;
-					const unmount = mountTranscriptProjection(tui, entries => {
-						projection = new ActivityTranscript(entries, ctx.ui.theme, () => {});
-						return projection;
-					});
-					assert.ok(unmount);
-					releases.push(unmount);
-					const release = adapt ? install(tui) : () => {};
-					assert.equal(typeof release, "function");
-					releases.push(release!);
+					const attach = () => {
+						const unmount = mountTranscriptProjection(tui, entries => {
+							projection = new ActivityTranscript(entries, ctx.ui.theme, () => {});
+							return projection;
+						});
+						assert.ok(unmount);
+						releases.push(unmount);
+						return unmount;
+					};
+					const unmount = project ? attach() : () => {};
 					const tool = (name = "codemode", shell?: "self") => {
 						const native = new ToolExecutionComponent(name, name + chat.children.length, {}, { imageWidthCells: 12 }, shell ? {
 							renderShell: shell,
@@ -57,7 +57,7 @@ export default function (pi: ExtensionAPI) {
 						assert.equal(projection.onMouse(event), true);
 						assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 					};
-					return { tui, chat, document, projection, render, click, tool, release, unmount };
+					return { tui, chat, get projection() { return projection; }, render, click, tool, attach, unmount };
 				}
 
 				// Baseline regression: the native image is present, but the fold hides it.
@@ -74,6 +74,32 @@ export default function (pi: ExtensionAPI) {
 				f.click();
 				assert.equal(imageCount(f.render()), 1);
 				assert.equal((tool as any).result, output, "presentation must not rewrite the model-visible result");
+
+				// Images are outside the clickable fold body.
+				const imageRow = f.render().findIndex(line => line.includes("\x1b_G"));
+				const imagePress = { type: "press" as const, row: imageRow, col: 2, screenRow: imageRow, screenCol: 2, button: 0 as const, wheel: undefined, shift: false, alt: false, ctrl: false };
+				f.projection.onMouse(imagePress);
+				f.projection.onMouse({ ...imagePress, type: "release" });
+				assert.doesNotMatch(plain(f.render()), /private tool details/);
+				assert.equal(imageCount(f.render()), 1);
+
+				// Stable section/image views preserve mouse leave across a repaint.
+				const hoverBefore = f.render();
+				const hoverRow = hoverBefore.findIndex(line => stripTerminalSequences(line).includes("Worked"));
+				const move = { type: "move" as const, row: hoverRow, col: 2, screenRow: hoverRow, screenCol: 2, button: undefined, wheel: undefined, shift: false, alt: false, ctrl: false };
+				assert.equal(f.projection.onMouse(move), true);
+				assert.notEqual(f.render()[hoverRow], hoverBefore[hoverRow]);
+				f.projection.onMouse({ ...move, row: -1, screenRow: -1 });
+				assert.equal(f.render()[hoverRow], hoverBefore[hoverRow]);
+
+				// An existing activity section must pick up images from later tools.
+				const growing = fixture();
+				growing.tool("read").updateResult({ content: [{ type: "text", text: "private earlier output" }], isError: false });
+				assert.equal(imageCount(growing.render()), 0);
+				growing.tool("codemode").updateResult(result());
+				assert.equal(imageCount(growing.render()), 1);
+				assert.match(plain(growing.render()), /2 steps/);
+				assert.doesNotMatch(plain(growing.render()), /private earlier output|private tool details/);
 
 				// Native settings and widths may change without a new result/entry.
 				const nativeImage = (tool as any).imageComponents[0];
@@ -143,66 +169,45 @@ export default function (pi: ExtensionAPI) {
 				conversion.click();
 				assert.equal(imageCount(conversion.render()), 1);
 
-				// Detach restores the original collapse; reattach/reload reads saved native rows.
-				f.release!();
-				assert.equal(imageCount(f.render()), 0);
-				const reattach = install(f.tui)!;
-				releases.push(reattach);
+				// Removing the projection restores native tool rows, including their images.
+				f.unmount();
 				assert.equal(imageCount(f.render()), 2);
-				reattach();
-				assert.equal(imageCount(f.render()), 0);
-				const resumed = fixture();
-				const historical = resumed.tool();
-				historical.updateResult(result());
-				assert.equal(imageCount(resumed.render()), 1);
+				assert.match(plain(f.render()), /private tool details/);
+				f.attach();
+				assert.equal(imageCount(f.render()), 2);
+				assert.doesNotMatch(plain(f.render()), /private tool details/);
 
-				// Regular scrollback is byte-for-byte native; unsupported hosts fail open.
+				// Regular scrollback is byte-for-byte native.
 				const regular = fixture("regular", false);
 				regular.tool().updateResult(result());
 				const regularBefore = regular.render();
-				releases.push(install(regular.tui)!);
+				regular.attach();
 				assert.deepEqual(regular.render(), regularBefore);
-				assert.equal(install(new TuiAltScreen(new ProcessTerminal())), undefined);
 
-				// Actual extension widget lifecycle: repeat startup/disposal without stacking.
+				// The fork owns the projection; images need no second installer or late-mount hook.
 				const lifecycle = fixture("fullscreen", false);
-				lifecycle.tool().updateResult(result());
 				const hooks = new Map<string, Function>();
-				adapter!.default({ on: (event: string, handler: Function) => hooks.set(event, handler) } as unknown as ExtensionAPI);
+				transcriptExtension({ on: (event: string, handler: Function) => hooks.set(event, handler) } as unknown as ExtensionAPI);
 				let widget: any;
-				const context = { hasUI: true, mode: "tui", ui: {
+				const context = { hasUI: true, mode: "tui", sessionManager: SessionManager.inMemory("/tmp"), ui: {
 					setWidget(_key: string, factory: any) {
 						widget?.dispose();
 						widget = factory?.(lifecycle.tui, ctx.ui.theme);
 					},
 				} };
-				for (let reload = 0; reload < 2; reload++) {
-					hooks.get("session_start")!({}, context);
-					assert.equal(imageCount(lifecycle.render()), 1);
-					assert.deepEqual(widget.render(), [], "host widget itself must stay invisible");
-				}
+				hooks.get("session_start")!({}, context);
+				assert.deepEqual(widget.render(), [], "host widget itself must stay invisible");
+				// Native restored history is populated after session_start.
+				lifecycle.tool().updateResult(result());
+				assert.equal(imageCount(lifecycle.render()), 1);
+				assert.doesNotMatch(plain(lifecycle.render()), /private tool details/);
+				hooks.get("session_start")!({}, context);
+				assert.equal(imageCount(lifecycle.render()), 1, "restarting the widget must not duplicate images");
 				hooks.get("session_shutdown")!({}, context);
-				assert.equal(imageCount(lifecycle.render()), 0);
+				assert.equal(imageCount(lifecycle.render()), 1);
+				assert.match(plain(lifecycle.render()), /private tool details/);
 				hooks.get("session_start")!({}, { ...context, mode: "json", hasUI: false });
-				assert.equal(imageCount(lifecycle.render()), 0);
-
-				// Local extensions can start before package extensions mount the fold.
-				const delayed = fixture("fullscreen", false);
-				delayed.tool().updateResult(result());
-				delayed.unmount!();
-				const delayedContext = { ...context, ui: {
-					setWidget(_key: string, factory: any) {
-						widget?.dispose();
-						widget = factory?.(delayed.tui, ctx.ui.theme);
-					},
-				} };
-				hooks.get("session_start")!({}, delayedContext);
-				const delayedUnmount = mountTranscriptProjection(delayed.tui, entries => new ActivityTranscript(entries, ctx.ui.theme, () => {}));
-				assert.ok(delayedUnmount);
-				releases.push(delayedUnmount);
-				widget.render();
-				assert.equal(imageCount(delayed.render()), 1, "attach even when the projection mounts after session_start");
-				hooks.get("session_shutdown")!({}, delayedContext);
+				assert.match(plain(lifecycle.render()), /private tool details/);
 				console.log("VISIBLE_TOOL_IMAGES_TESTS_PASSED");
 			} catch (error) {
 				console.error(error);

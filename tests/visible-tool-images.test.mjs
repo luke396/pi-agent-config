@@ -14,7 +14,7 @@ test("tool images remain visible with collapsed activity", () => {
 			"--offline", "--no-extensions", "--no-skills", "--no-prompt-templates",
 			"--no-themes", "--no-context-files", "--no-session", "--no-tools", "--no-mcp",
 			"-e", fileURLToPath(new URL("./fixtures/visible-tool-images.ts", import.meta.url)),
-			"-p", "/test-visible-images" + (process.env.PI_IMAGE_PREVIEWS_BASELINE ? " baseline" : ""),
+			"-p", "/test-visible-images",
 		], {
 			cwd: root,
 			env: { ...process.env, PI_CODING_AGENT_DIR: root },

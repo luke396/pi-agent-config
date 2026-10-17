@@ -13,6 +13,11 @@ keep their own licenses.
   [Diogo Dias's implementation](https://github.com/diogovdias/pi-config-sync/tree/81d821bbb6a92df2b52c342fe2e1ff51c560bb66)
   and retains its full MIT notice inline. Historical `scripts/settings-sync/`
   and `tests/fixtures/settings-sync-generated/` copies carried license files.
+- **pi-collapse-transcript:** `extensions/collapse-transcript/` forks
+  [`@luan.sh/pi-collapse-transcript` 0.3.6](https://www.npmjs.com/package/@luan.sh/pi-collapse-transcript/v/0.3.6),
+  from [Luan Santos's agents repository](https://github.com/luan/agents/tree/main/harnesses/pi/agent/packages/pi-collapse-transcript).
+  `tests/fixtures/collapse-*.ts` adapt its regression tests. These copies retain
+  the full [MIT notice](extensions/collapse-transcript/LICENSE) (2026 Luan Santos).
 - **HumanLayer:** `skills/show-me/` adapts the
   [show-me skill](https://github.com/humanlayer/skills/blob/bba9d13ab34f0a87f1cc33df4dd196372393ddfc/plugins/show-me/skills/show-me/SKILL.md).
   Keep its source metadata and accompanying [MIT license](skills/show-me/LICENSE).

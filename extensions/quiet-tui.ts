@@ -1,7 +1,7 @@
 /**
  * Quiet TUI
  *
- * @luan.sh/pi-collapse-transcript bundles @luan.sh/pi-libtui, whose defaults
+ * The managed @luan.sh/pi-libtui package's defaults
  * (user-message bubbles plus animated working/thinking indicators) made a long
  * session repaint its whole transcript ~30 times a second: one pi process sat
  * at ~100% CPU while only waiting on the model. Bubbles re-measure and re-slice

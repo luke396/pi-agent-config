@@ -23,23 +23,28 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 - **`pi-catppuccin-tui` is filtered to its themes** to preserve Pi's native footer.
 - **`pi-powerline-footer` was removed rather than filtered:** it wanted all three
   slots.
-- **Transcript grouping is owned by `@luan.sh/pi-collapse-transcript`.** It
-  replaced `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse`. Pi 1.1.0 was
-  checked with pi-vim, restored thinking/codemode history, and mouse expansion
-  both with open-tui and with the native header/footer. Grouping only
-  activates in fullscreen; regular mode retains native rows. The bundled
-  `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
-  detail rendering; removing open-tui does not remove these changes.
-- **Tool images stay visible while activity details are folded.**
-  `extensions/visible-tool-images.ts` borrows the native image components below
-  collapsed groups; expanded groups use the original renderer once. This is a
-  display-only adapter because collapse-transcript has no image-preview setting.
-  It does not copy image data into messages or patch npm files. Its private-field
-  compatibility boundary was checked with Pi 1.3.0, collapse-transcript 0.3.6 and
-  bundled libtui 0.3.15; after upgrades, run the image regression test and check
-  `/reload`. Unsupported shapes retain the upstream display. Local extensions
-  can start before the package mounts its projection; component-only tests miss
-  this, so keep an actual TUI restore/reload check for changes to this adapter.
+- **Transcript grouping and image visibility have one local owner.**
+  `extensions/collapse-transcript/` is a small fork of
+  `@luan.sh/pi-collapse-transcript` 0.3.6. The upstream folding registration and
+  the `visible-tool-images.ts` monkeypatch addon are removed. Earlier
+  `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse` remain removed too.
+  Keep image policy inside the group instead of inspecting another extension's
+  private section state. Images are visible while folded; expansion retains the
+  original tool views. Grouping remains fullscreen-only.
+- **`@luan.sh/pi-libtui@0.3.15` remains an upstream dependency, deliberately pinned.**
+  The standalone source matched the previously bundled library. Keep its extension
+  enabled for codemode presentation, mouse/scrolling and the native history bridge;
+  its themes are filtered out to preserve the old resource selection. Local folding
+  imports it from Pi's managed npm tree: bare third-party imports from a local
+  extension do not search `agent/npm/node_modules`. No local dependency install
+  script or second copy of the TUI library is needed.
+- **The remaining private image access is isolated.**
+  The fork borrows native Image/spacer instances so Pi owns settings, IDs and
+  conversion. Unknown shapes retain the expanded native view. After upgrading
+  Pi/libtui, run the folding/image tests and check actual history restoration,
+  `/reload`, mouse expansion and pi-vim; component-only tests do not establish
+  extension startup ordering. Fork provenance and maintenance notes live in
+  `extensions/collapse-transcript/README.md`.
 - **`extensions/quiet-tui.ts` turns off libtui's bubbles and animations.** With
   the defaults, a long fullscreen session held one core at ~100% while only
   waiting on the model: animations repaint ~30 fps and every frame re-slices

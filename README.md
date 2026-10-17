@@ -17,8 +17,8 @@ working principles, task-specific skills, local extensions, and package choices.
 | Project rules | [claude-rules.ts](extensions/claude-rules.ts): advertise `.claude/rules/**/*.md` for selective loading. |
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab; clear the native thinking shortcut as in [keybindings.json](keybindings.json). |
-| Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable bubbles and animations; requires loaded pi-libtui, bundled here by `@luan.sh/pi-collapse-transcript`. |
-| Visible tool images | [visible-tool-images.ts](extensions/visible-tool-images.ts): show native images below collapsed activity; expanded groups keep the original renderer without duplicating images. Requires `pi-collapse-transcript`. |
+| Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable pi-libtui's bubbles and animations. |
+| Transcript folding | [collapse-transcript](extensions/collapse-transcript/README.md): locally maintained fork with native images below collapsed activity; expanded groups keep the original tool views. |
 | Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
@@ -34,7 +34,9 @@ traps, some of which concern settings that have since changed.
   shortcut switches between two model-appropriate levels.
 - Pi keeps its native header/footer, with `pi-vim`'s editor and Catppuccin Mocha.
   `pi-catppuccin-tui` loads themes only; transcript grouping requires fullscreen.
-  Tool images stay visible below collapsed groups. Regular scrollback is unchanged.
+  The local folding module keeps tool images visible below collapsed groups;
+  regular scrollback is unchanged. It reuses pinned `pi-libtui`, including its
+  codemode presentation, mouse and history bridge.
 - Delegation and research use `pi-subagents`, `pi-web-access`, and selected
   upstream skills. `AGENTS.md` defines when delegation is authorized.
 
@@ -95,8 +97,9 @@ the body, absence of the Ultrafast header, and unchanged normal requests.
 
 Copy skills as whole directories, keeping supporting files and license notices.
 Copy chosen extensions into `~/.pi/agent/extensions/` and reload Pi, or try one
-with `pi -e /path/to/extension.ts`. Keep `session-title` as a directory and adapt
-keybindings alongside the thinking toggle. Skills and non-sync extensions can be
+with `pi -e /path/to/extension.ts`. Keep `session-title` and `collapse-transcript`
+as directories; the folding module also needs its documented libtui package
+declaration. Adapt keybindings alongside the thinking toggle. Skills and non-sync extensions can be
 reused without running this repository's setup script.
 
 For this repository's settings-sync workflow, keep [.gitattributes](.gitattributes),
@@ -117,8 +120,9 @@ rewrites; they do not rerun setup. Pi also prepares the filter at session start.
 
 Neither setup nor the Git hooks install or update packages. Normal online Pi
 startup installs missing configured packages. Run `pi update --extensions`
-explicitly to upgrade existing packages. Package references are unpinned, so
-installation and updates can fetch newer code and run dependency scripts.
+explicitly to upgrade existing packages. Most package references are unpinned,
+so installation and updates can fetch newer code and run dependency scripts.
+`pi-libtui` is pinned to the version checked with the local folding fork.
 
 New-machine steps and the first-login caveat are in the [setup header](setup.sh).
 Back up existing configuration before replacement; do not force-checkout over
@@ -133,23 +137,24 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.3.0: **88 offline tests passed**. The suite
+Verified with Node.js 26.7.0 and Pi 1.3.0: **91 offline tests passed**. The suite
 uses temporary Git fixtures, fake providers, and native transcript components:
 
 ```sh
 node --test tests/settings-sync.test.mjs tests/*.test.ts \
   tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs \
-  tests/visible-tool-images.test.mjs
+  tests/visible-tool-images.test.mjs tests/collapse-transcript.test.mjs
 ```
 
 The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
 loopback fake OpenAI APIs; they also work with the standalone distribution.
-No live credentials are used. The image test also runs inside the installed Pi,
-using the configured collapse package and its bundled libtui. It covers collapsed
-and expanded images, native image settings/conversion, streaming replacements,
-regular mode, and adapter disposal/reinstallation.
+No live credentials are used. The folding and image tests also run inside the
+installed Pi, using the local fork and managed libtui. They preserve the upstream
+behavioral assertions for grouping, timing, queued requests and compaction/history,
+and cover image visibility, conversion/settings, streaming, mouse interaction,
+regular mode and widget lifecycle.
 
-The rules integration test is separate from the 88-test run above. It needs an
+The rules integration test is separate from the 91-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
 does not supply those importable modules.
 

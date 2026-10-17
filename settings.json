@@ -35,7 +35,10 @@
       "extensions": []
     },
     "npm:pi-vim",
-    "npm:@luan.sh/pi-collapse-transcript",
+    {
+      "source": "npm:@luan.sh/pi-libtui@0.3.15",
+      "themes": []
+    },
     "npm:@arhen/pi-core-tps-stats",
     "npm:@arhen/pi-core-ask",
     "npm:pi-hermes-memory"
