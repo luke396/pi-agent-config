@@ -8,6 +8,24 @@ description: Ablate a task's cumulative diff from its pre-feature baseline. Use 
 Review every added mechanism, including those that look reasonable, by trying to
 remove, restore or replace it while preserving the task's requirements.
 
+This is a simplification audit. Correctness checks establish the contracts and
+validate alternatives; a general functional review is outside this skill's scope.
+
+## Choose the execution context
+
+When reviewing your own nontrivial implementation, prefer one fresh-context
+ablation auditor if delegation is authorized. Review small, clear changes directly.
+A delegated auditor performs the audit directly, without further delegation.
+
+Give the auditor this skill, the original requirements and revisions, the baseline
+and cumulative diff, and existing evidence and limitations. Separate the author's
+design rationale from confirmed requirements. The parent retains requirement
+decisions, verification and acceptance; avoid duplicate full audits.
+
+Assign experiment execution explicitly: use a role permitted to run isolated
+experiments, or have the parent validate the auditor's candidates. Where the method
+calls for an experiment, static inspection is not a substitute.
+
 ## Establish scope and baseline
 
 Compare against the state before the feature, including relevant uncommitted work.
