@@ -21,8 +21,7 @@ trust.json
 # --- Sessions and runtime state (large, churning, regenerable) ---
 sessions/
 run-history.jsonl
-# Personal memory and transcript indexes must never enter this PUBLIC repo.
-# No trailing slash: ignore both fallback directories and private-data symlinks.
+# Personal memory, transcript indexes and local config must stay out of this public repo.
 /memory
 /pi-hermes-memory
 /projects-memory
