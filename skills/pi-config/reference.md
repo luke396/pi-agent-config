@@ -30,6 +30,16 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   activates in fullscreen; regular mode retains native rows. The bundled
   `pi-libtui` also changes user-message bubbles, Markdown tables, and codemode
   detail rendering; removing open-tui does not remove these changes.
+- **Tool images stay visible while activity details are folded.**
+  `extensions/visible-tool-images.ts` borrows the native image components below
+  collapsed groups; expanded groups use the original renderer once. This is a
+  display-only adapter because collapse-transcript has no image-preview setting.
+  It does not copy image data into messages or patch npm files. Its private-field
+  compatibility boundary was checked with Pi 1.3.0, collapse-transcript 0.3.6 and
+  bundled libtui 0.3.15; after upgrades, run the image regression test and check
+  `/reload`. Unsupported shapes retain the upstream display. Local extensions
+  can start before the package mounts its projection; component-only tests miss
+  this, so keep an actual TUI restore/reload check for changes to this adapter.
 - **`extensions/quiet-tui.ts` turns off libtui's bubbles and animations.** With
   the defaults, a long fullscreen session held one core at ~100% while only
   waiting on the model: animations repaint ~30 fps and every frame re-slices

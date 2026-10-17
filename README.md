@@ -18,6 +18,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab; clear the native thinking shortcut as in [keybindings.json](keybindings.json). |
 | Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable bubbles and animations; requires loaded pi-libtui, bundled here by `@luan.sh/pi-collapse-transcript`. |
+| Visible tool images | [visible-tool-images.ts](extensions/visible-tool-images.ts): show native images below collapsed activity; expanded groups keep the original renderer without duplicating images. Requires `pi-collapse-transcript`. |
 | Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
@@ -33,6 +34,7 @@ traps, some of which concern settings that have since changed.
   shortcut switches between two model-appropriate levels.
 - Pi keeps its native header/footer, with `pi-vim`'s editor and Catppuccin Mocha.
   `pi-catppuccin-tui` loads themes only; transcript grouping requires fullscreen.
+  Tool images stay visible below collapsed groups. Regular scrollback is unchanged.
 - Delegation and research use `pi-subagents`, `pi-web-access`, and selected
   upstream skills. `AGENTS.md` defines when delegation is authorized.
 
@@ -131,19 +133,23 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.3.0: **87 offline tests passed**. The suite
-uses temporary Git fixtures and fake providers:
+Verified with Node.js 26.7.0 and Pi 1.3.0: **88 offline tests passed**. The suite
+uses temporary Git fixtures, fake providers, and native transcript components:
 
 ```sh
 node --test tests/settings-sync.test.mjs tests/*.test.ts \
-  tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs
+  tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs \
+  tests/visible-tool-images.test.mjs
 ```
 
 The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
 loopback fake OpenAI APIs; they also work with the standalone distribution.
-No live credentials are used.
+No live credentials are used. The image test also runs inside the installed Pi,
+using the configured collapse package and its bundled libtui. It covers collapsed
+and expanded images, native image settings/conversion, streaming replacements,
+regular mode, and adapter disposal/reinstallation.
 
-The rules integration test is separate from the 87-test run above. It needs an
+The rules integration test is separate from the 88-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
 does not supply those importable modules.
 
