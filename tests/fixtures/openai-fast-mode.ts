@@ -64,16 +64,18 @@ export default async function (pi: ExtensionAPI) {
 				// Assert on the command's own notice so an argument the command
 				// refuses cannot pass this fixture as "no tier sent".
 				const notices: string[] = [];
-				await setFast(state, {
-					model: ctx.model,
-					ui: { notify: (message: string) => notices.push(message), setStatus: () => {} },
-				} as never);
-				assert.deepEqual(notices, [state === "on" ? "Fast mode: on" : "Fast mode: off"]);
+				if (state !== "default") {
+					await setFast(state, {
+						model: ctx.model,
+						ui: { notify: (message: string) => notices.push(message), setStatus: () => {} },
+					} as never);
+					assert.deepEqual(notices, [state === "on" ? "Fast mode: on" : "Fast mode: off"]);
+				}
 				await pi.sendUserMessage("Reply with the single word ok.", { triggerTurn: true });
 				await ctx.waitForIdle();
 				assert.ok(request, "no provider request reached the loopback endpoint");
 				assert.equal(request.body.model, "gpt-6-astra");
-				assert.equal(request.body.service_tier, state === "on" ? "priority" : undefined);
+				assert.equal(request.body.service_tier, state === "off" ? undefined : "priority");
 				// Fast is a body field; no routing header belongs to this switch.
 				assert.equal(request.headers["openai-service-tier"], undefined);
 				console.log(`OPENAI_FAST_MODE_TESTS_PASSED ${state}`);

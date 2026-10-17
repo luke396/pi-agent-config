@@ -51,7 +51,7 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 
 ## Models and local extensions
 
-- **Fast mode is a manual, per-session switch; Ultrafast stays out of it.**
+- **Fast defaults on for OpenAI Astra; manual overrides are per-session.**
   `extensions/openai-fast-mode.ts` owns `/fast` (`on` | `off`; a bare `/fast`
   reports the state without switching) for conversation requests on `openai`.
   A footer status (`fast` / `fast (inactive)`) carries the state between commands,
@@ -71,9 +71,12 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `buildBaseOptions` never sets `serviceTier`, and this endpoint echoes
   `default` — so the shown amount is computed as if the tier were unset; if the
   server does bill Fast, it is low.
-  Fast starts off in every new, resumed or forked session, because pi recreates
-  the extension runtime and runs the factory again. `pi-codex-fast-mode` remains
-  uninstalled.
+  Without a manual override, Fast follows the selected model: on only for
+  `openai/gpt-6-astra`, off otherwise. `/fast on|off` overrides that default for
+  the session and survives model changes. New, resumed, forked, or reloaded
+  sessions return to the model default because pi recreates the extension
+  runtime. The `session_start` status refresh makes the default visible before
+  the first command. `pi-codex-fast-mode` remains uninstalled.
 - **Tier spelling was checked on this account.** In a 2026-10-01 ChatGPT OAuth
   check, `"fast"` was rejected with HTTP 400, while `"priority"` completed
   successfully. The response still reported `"default"`, so this verified the

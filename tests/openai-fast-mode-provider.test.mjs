@@ -13,7 +13,7 @@ const fixture = fileURLToPath(new URL("./fixtures/openai-fast-mode.ts", import.m
 test("each switch state reaches the provider request as documented", () => {
 	const root = mkdtempSync(path.join(tmpdir(), "pi-fast-mode-"));
 	try {
-		for (const state of ["off", "on"]) {
+		for (const state of ["default", "off", "on"]) {
 			const result = spawnSync("pi", [
 				"--offline", "--no-extensions", "--no-skills", "--no-prompt-templates",
 				"--no-themes", "--no-context-files", "--no-session", "--no-tools", "--no-mcp",

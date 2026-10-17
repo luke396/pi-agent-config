@@ -18,7 +18,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Skill invocation | [manual-only-skills.ts](extensions/manual-only-skills.ts): keep `research`, `writing-for-agents`, `code-review`, and `grilling` available through `/skill:name` while hiding them from automatic selection. |
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab; clear the native thinking shortcut as in [keybindings.json](keybindings.json). |
 | Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable bubbles and animations; requires loaded pi-libtui, bundled here by `@luan.sh/pi-collapse-transcript`. |
-| Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): `/fast on` and `/fast off` for conversation requests on the `openai` provider. |
+| Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 
@@ -48,10 +48,15 @@ data flows; this repo does not provision them.
 
 ## OpenAI Fast mode
 
-`/fast on` requests Fast (`service_tier: "priority"`) for conversation requests
-on the `openai` provider, including their cache-warming replays. `/fast` reports
-the state without changing it. The switch starts off in each new, resumed, or
-forked session and is inactive on other providers.
+Fast (`service_tier: "priority"`) defaults on when `openai/gpt-6-astra` is
+selected, for conversation requests including their cache-warming replays.
+Other models default off. Until explicitly overridden, this default follows
+model changes; the footer shows `fast` while active.
+
+`/fast on` and `/fast off` override the default for the current session. A manual
+choice survives model changes; on applies to all `openai` models and is inactive
+on other providers. `/fast` reports the state without changing it. New, resumed,
+forked, or reloaded sessions return to the selected model's default.
 
 `/fast off` removes only this extension's override: a tier set in local
 `models.json` remains in effect, so off does not guarantee Standard pricing.
@@ -126,7 +131,7 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.2.0: **81 offline tests passed**. The suite
+Verified with Node.js 26.7.0 and Pi 1.3.0: **87 offline tests passed**. The suite
 uses temporary Git fixtures and fake providers:
 
 ```sh
@@ -138,7 +143,7 @@ The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
 loopback fake OpenAI APIs; they also work with the standalone distribution.
 No live credentials are used.
 
-The rules integration test is separate from the 81-test run above. It needs an
+The rules integration test is separate from the 87-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
 does not supply those importable modules.
 

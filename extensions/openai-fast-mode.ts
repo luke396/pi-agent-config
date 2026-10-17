@@ -1,4 +1,4 @@
-// Manual Fast mode switch for models on the `openai` provider.
+// Fast defaults on for OpenAI Astra, with a manual per-session override.
 //
 // Fast travels in the request body as `service_tier`. OpenAI documents "fast"
 // and "priority" as the same tier, and this endpoint rejects the literal "fast"
@@ -9,9 +9,9 @@
 // effect. That is why the command asks for on/off instead of claiming the
 // request is Standard.
 //
-// Pi recreates the extension runtime for every new, resumed or forked session,
-// which runs the factory below again, so fast starts off; silently inheriting a
-// paid tier across sessions is the expensive mistake this avoids.
+// Until /fast on|off is used, the default follows the selected model. Pi
+// recreates the runtime for new, resumed or forked sessions, so those return
+// to the model default rather than inheriting a manual override.
 // Requests that Pi derives itself (compaction, nested model calls) do not pass
 // this hook, so they keep their own tier.
 
@@ -20,10 +20,12 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const STATUS_KEY = "fast-mode";
 
 export default function (pi: ExtensionAPI) {
-	let fast = false;
+	let fastOverride: boolean | undefined;
+	const isFast = (ctx: ExtensionContext) =>
+		fastOverride ?? (ctx.model?.provider === "openai" && ctx.model.id === "gpt-6-astra");
 
 	const updateStatus = (ctx: ExtensionContext) => {
-		if (!fast) {
+		if (!isFast(ctx)) {
 			ctx.ui.setStatus(STATUS_KEY, undefined);
 			return;
 		}
@@ -31,7 +33,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	pi.on("before_provider_request", (event, ctx) => {
-		if (!fast || ctx.model?.provider !== "openai") return;
+		if (!isFast(ctx) || ctx.model?.provider !== "openai") return;
 		return { ...(event.payload as Record<string, unknown>), service_tier: "priority" };
 	});
 
@@ -44,13 +46,13 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			if (requested) fast = requested === "on";
-			ctx.ui.notify(fast ? "Fast mode: on" : "Fast mode: off", "info");
+			if (requested) fastOverride = requested === "on";
+			ctx.ui.notify(isFast(ctx) ? "Fast mode: on" : "Fast mode: off", "info");
 			updateStatus(ctx);
 		},
 	});
 
-	// The status follows the model, so a switch that no longer reaches the
-	// current provider is visible instead of silently inert.
+	// Show the default at startup and follow the selected model thereafter.
+	pi.on("session_start", (_event, ctx) => updateStatus(ctx));
 	pi.on("model_select", (_event, ctx) => updateStatus(ctx));
 }
