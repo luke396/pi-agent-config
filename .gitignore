@@ -21,6 +21,12 @@ trust.json
 # --- Sessions and runtime state (large, churning, regenerable) ---
 sessions/
 run-history.jsonl
+# Personal memory and transcript indexes must never enter this PUBLIC repo.
+# No trailing slash: ignore both fallback directories and private-data symlinks.
+/memory
+/pi-hermes-memory
+/projects-memory
+/hermes-memory-config.json
 # pi-config-sync clean/smudge filter and this machine's settings fields.
 # Includes defaultProvider/defaultModel: choices depend on local models/auth.
 /.git-sync/

@@ -37,6 +37,10 @@
     "npm:pi-vim",
     "npm:@luan.sh/pi-collapse-transcript",
     "npm:@arhen/pi-core-tps-stats",
-    "npm:@arhen/pi-core-ask"
+    "npm:@arhen/pi-core-ask",
+    {
+      "source": "npm:pi-hermes-memory@0.9.10",
+      "extensions": []
+    }
   ]
 }
