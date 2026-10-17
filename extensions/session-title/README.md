@@ -12,21 +12,41 @@ Topic judgement is model-dependent; mocks do not establish real model quality.
 
 ## Model and limits
 
-Default: **`openai/gpt-6-luna`**, independent of the active chat model. Configure
-optional environment variables before starting Pi (or reloading extensions):
+The checked-in [config.json](config.json) selects **`deepseek/deepseek-flash`**,
+independent of the active chat model and the memory extension:
+
+```json
+{
+  "model": "deepseek/deepseek-flash"
+}
+```
+
+Edit `~/.pi/agent/extensions/session-title/config.json`, then run `/reload`.
+Configuration is fixed for each extension runtime; editing the file does not
+change an in-flight request. The file contains only the model selection and is
+synced with this repo, not credentials.
+
+An environment variable can override the file for one machine or invocation:
 
 ```sh
-PI_AUTO_TITLE_MODEL=openai/gpt-6-luna \
+PI_AUTO_TITLE_MODEL=deepseek/deepseek-flash \
 PI_AUTO_TITLE_COOLDOWN_MS=600000 pi
 ```
 
-The model value is `provider/model-id` (model IDs may contain `/`). Cooldown is a
-finite nonnegative number of milliseconds. Invalid values disable requests.
-No config or credential file is read directly or written by this extension.
+Model precedence: `PI_AUTO_TITLE_MODEL` → `config.json`'s `model` → the legacy
+`openai/gpt-6-luna` default only if the file is absent. A present file must be
+valid JSON with a string `model` in `provider/model-id` format (model IDs may
+contain `/`). An unreadable/invalid file disables requests rather than silently
+using another provider, unless the environment override is set. Cooldown remains
+a finite nonnegative number of milliseconds; invalid values disable requests.
+Use `/auto-title status` to inspect the selected model and configuration status.
+Shell environment changes require starting Pi with the new environment.
+
 The configured model must be a chat model. Pi's model registry resolves it and
-its authentication. Depending on the provider and model, requests can consume
-subscription allowance or API credit. Naming calls are currently **not included
-in Pi's footer or `/session` token totals**; consult the provider's usage view.
+its authentication; this extension never reads or writes credential files.
+Depending on the provider and model, requests can consume subscription allowance
+or API credit. Naming calls are currently **not included in Pi's footer or
+`/session` token totals**; consult the provider's usage view.
 Version-specific verification is recorded below.
 
 - At most 8 recent user/assistant text messages, 1,200 UTF-16 code units each and
@@ -87,8 +107,10 @@ From the repository root, using Node 26.7.0's native TypeScript support:
 node --test tests/session-title.test.ts
 ```
 
-All 45 tests passed. They wire the actual extension factory to a minimal Pi
+All 53 tests passed. They wire the actual extension factory to a minimal Pi
 fake, with deferred providers and mocked time, and make **no provider requests**.
+Configuration checks cover the selected model, file reload, environment priority,
+and missing, unreadable or invalid files.
 The fake models Pi 1.2.0's retained entry-data references, session-global names,
 projected context, and delayed name events.
 
@@ -96,6 +118,15 @@ A separate offline check with a clean Pi 1.2.0 agent directory resolved the
 default `openai/gpt-6-luna` through `modelRegistry.find()` as `type: "chat"`,
 `api: "openai-responses"`. This verifies catalog registration only. Live naming,
 ChatGPT OAuth, and TUI behavior have not been rechecked on Pi 1.2.0.
+
+### Current integration check — Pi 1.3.0
+
+An isolated, in-memory RPC session loaded the real extension and checked-in
+config without `PI_AUTO_TITLE_MODEL`. `/auto-title status` reported
+`deepseek/deepseek-flash`; after a short synthetic Chinese conversation,
+`/auto-title now` produced a Chinese native session title and reported
+`Title updated`. This checks file loading, provider authentication and the
+real naming request, not automatic TUI triggering or general model quality.
 
 ### Historical integration check — Pi 1.0.3
 

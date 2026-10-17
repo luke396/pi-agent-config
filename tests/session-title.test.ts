@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { test } from "node:test";
 import sessionTitle from "../extensions/session-title/index.ts";
 
@@ -90,7 +91,7 @@ test("first name uses dedicated model, stable topic KEEP, then material topic ch
 	assert.equal(f.calls.length, 0);
 	f.turn(); await f.emit("agent_settled"); await flush();
 	assert.equal(f.getName(), "首个主题");
-	assert.deepEqual(f.calls[0].model, { provider: "openai", id: "gpt-6-luna" });
+	assert.deepEqual(f.calls[0].model, { provider: "deepseek", id: "deepseek-flash" });
 	assert.equal(f.calls[0].config.maxRetries, 0);
 	assert.equal(f.calls[0].config.maxTokens, 2048);
 	assert.equal(f.calls[0].config.reasoning, "low");
@@ -310,7 +311,45 @@ test("commands status/on/off/now: explicit opt-in and forced retries, no implici
 	await f.command("bogus"); assert.match(f.notices.at(-1)!, /Usage/);
 });
 
-test("configuration is instance-fixed, supports model/cooldown, and invalid values fail closed", async (t) => {
+test("file model configuration is fixed until reload and appears in status", async (t) => {
+	let config = '{"model":"local/small/model"}';
+	t.mock.method(fs, "readFileSync", () => config);
+	const f = fake(); await f.start(); f.turn(); await f.command("now"); await flush();
+	assert.deepEqual(f.calls[0].model, { provider: "local", id: "small/model" });
+	await f.command("status"); assert.match(f.notices.at(-1)!, /local\/small\/model/);
+
+	config = '{"model":"other/new-model"}';
+	await f.command("now"); await flush();
+	assert.deepEqual(f.calls[1].model, { provider: "local", id: "small/model" });
+	await f.reload(); await f.command("now"); await flush();
+	assert.deepEqual(f.calls[2].model, { provider: "other", id: "new-model" });
+});
+
+test("missing model config preserves the legacy default", async (t) => {
+	t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); });
+	const f = fake(); await f.start(); f.turn(); await f.command("now"); await flush();
+	assert.deepEqual(f.calls[0].model, { provider: "openai", id: "gpt-6-luna" });
+});
+
+for (const config of ["{", "{}", "null", '{"model":42}', '{"model":"no-provider"}']) {
+	test(`invalid model config ${config} disables naming without a fallback`, async (t) => {
+		t.mock.method(fs, "readFileSync", () => config);
+		const f = fake(); await f.start(); f.turn(); await f.command("now"); await flush();
+		assert.equal(f.calls.length, 0);
+		assert.match(f.notices.at(-1)!, /Invalid/);
+		await f.command("status"); assert.match(f.notices.at(-1)!, /invalid configuration/);
+	});
+}
+
+test("unreadable model config disables naming without a fallback", async (t) => {
+	t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("denied"), { code: "EACCES" }); });
+	const f = fake(); await f.start(); f.turn(); await f.command("now"); await flush();
+	assert.equal(f.calls.length, 0);
+	assert.match(f.notices.at(-1)!, /Invalid/);
+});
+
+test("environment overrides file config, supports cooldown, and invalid values fail closed", async (t) => {
+	t.mock.method(fs, "readFileSync", () => "{");
 	const oldModel = process.env.PI_AUTO_TITLE_MODEL;
 	const oldCooldown = process.env.PI_AUTO_TITLE_COOLDOWN_MS;
 	t.after(() => {

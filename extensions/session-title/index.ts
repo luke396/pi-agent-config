@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { ExtensionAPI, ExtensionContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 
 const STATE = "session-title.v1";
@@ -71,8 +72,17 @@ function parseTitle(response: unknown): string | undefined {
 }
 
 export default function sessionTitle(pi: ExtensionAPI) {
-	// Instance-fixed, optional machine configuration. Importing this module writes nothing.
-	const modelSpec = process.env.PI_AUTO_TITLE_MODEL ?? "openai/gpt-6-luna";
+	// Instance-fixed configuration, read again on /reload. Importing writes nothing.
+	let modelSpec = process.env.PI_AUTO_TITLE_MODEL;
+	if (modelSpec === undefined) {
+		try {
+			const config = JSON.parse(fs.readFileSync(new URL("./config.json", import.meta.url), "utf8"));
+			modelSpec = typeof config?.model === "string" ? config.model : "";
+		} catch (error) {
+			// Preserve the old default only when no file exists; invalid config disables requests.
+			modelSpec = (error as NodeJS.ErrnoException).code === "ENOENT" ? "openai/gpt-6-luna" : "";
+		}
+	}
 	const slash = modelSpec.indexOf("/");
 	const provider = modelSpec.slice(0, slash);
 	const modelId = modelSpec.slice(slash + 1);
@@ -126,7 +136,7 @@ export default function sessionTitle(pi: ExtensionAPI) {
 		reconcile(ctx);
 		if (state!.mode === "pinned") return "Pinned/off; use /auto-title on to opt in";
 		if (pending) return "A naming request is still pending";
-		if (!configured) return "Invalid PI_AUTO_TITLE_MODEL or PI_AUTO_TITLE_COOLDOWN_MS";
+		if (!configured) return "Invalid session-title/config.json, PI_AUTO_TITLE_MODEL or PI_AUTO_TITLE_COOLDOWN_MS";
 		const input = recentInput(ctx);
 		if (!input) return "No completed user/assistant text to name";
 		const now = Date.now();
