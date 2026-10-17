@@ -5,11 +5,16 @@ A small fork of [`@luan.sh/pi-collapse-transcript`](https://github.com/luan/agen
 
 ## Ownership
 
-This directory owns activity grouping and image visibility. It replaces the npm
-folding extension and the former `visible-tool-images.ts` addon.
+This directory owns activity grouping, workflow-source folding and image
+visibility. It replaces the npm folding extension and the former
+`visible-tool-images.ts` addon.
 
 - Consecutive thinking/tool entries stay folded, with the upstream summary,
   elapsed time, step count, queue boundaries and compaction disclosure.
+- Top-level `js workflow` / `javascript workflow` fences join activity as tool
+  preparation, including while streaming. Surrounding prose, ordinary code and
+  nested code examples remain visible; incomplete final fences and native
+  error/abort/truncation notices retain their original view.
 - Native tool images appear below the folded row. Clicking an image does not
   open the fold.
 - Expansion uses the original tool views, with one copy of each image.
@@ -42,6 +47,20 @@ private image arrays or walk into tool-detail renderers. Other shapes produce no
 extra preview; the expanded native view remains available. Native instances
 continue to own image settings, IDs, conversion and invalidation.
 
+Workflow source selection is isolated in [workflow-source.ts](workflow-source.ts).
+It splits only libtui's single-text assistant views, reusing Pi's native rendering
+with the original theme and padding. Whole-message Markdown transformers run
+before splitting, with native width/streaming context, error handling and
+invalidation. This includes Pi's built-in Mermaid transformer; fragments never
+reapply those hooks. Possible reference definitions across prose spans retain
+the complete Markdown context to preserve link resolution; their workflow source
+stays visible. This boundary reads Pi 1.3's private assistant presentation fields;
+unrecognized shapes stay native. Display views retain their identities through
+streaming, resize and invalidation. The original messages, components and
+workflow execution inputs are never rewritten. Plain JavaScript fences remain
+ordinary content, including pi-subagents' untagged
+fallback syntax; the explicit `workflow` tag selects this folding policy.
+
 ## Baseline and maintenance
 
 Copied upstream `src/activity-transcript.ts`, `activity-timing.ts` and
@@ -64,5 +83,6 @@ node --test tests/collapse-transcript.test.mjs
 ```
 
 After a Pi/libtui upgrade, also check actual TUI history restoration, `/reload`,
-image display, mouse expansion and pi-vim. Component-only tests do not establish
-extension startup ordering or terminal protocol integration.
+image display, workflow source disclosure, mouse expansion and pi-vim.
+Component-only tests do not establish extension startup ordering or terminal
+protocol integration.

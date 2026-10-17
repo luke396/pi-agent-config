@@ -30,7 +30,9 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `pi-collapse-tools` and `@xzzpig/pi-thinking-collapse` remain removed too.
   Keep image policy inside the group instead of inspecting another extension's
   private section state. Images are visible while folded; expansion retains the
-  original tool views. Grouping remains fullscreen-only.
+  original tool views. Explicit `js workflow` / `javascript workflow` source
+  fences join the activity fold without changing execution input; ordinary code
+  and nested examples stay visible. Grouping remains fullscreen-only.
 - **`@luan.sh/pi-libtui@0.3.15` remains an upstream dependency, deliberately pinned.**
   The standalone source matched the previously bundled library. Keep its extension
   enabled for codemode presentation, mouse/scrolling and the native history bridge;

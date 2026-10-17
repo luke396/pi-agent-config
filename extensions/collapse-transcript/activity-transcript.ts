@@ -1,5 +1,5 @@
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { type Component, Spacer, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { type Component, type TUI, Spacer, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import {
 	ComponentStack,
 	type MotionMount,
@@ -12,6 +12,7 @@ import { foldTargetAt } from "../../npm/node_modules/@luan.sh/pi-libtui/src/fold
 import { ActivityTimings, formatActivityDuration } from "./activity-timing.ts";
 import { CompactionSection } from "./compaction-section.ts";
 import { renderToolImages } from "./native-tool-images.ts";
+import { WorkflowSources } from "./workflow-source.ts";
 
 type ActivityEntry = Extract<TranscriptEntry, { kind: "thinking" | "tool" }>;
 
@@ -132,6 +133,8 @@ export class ActivityTranscript extends ComponentStack {
 	private readonly sections = new Map<object, ActivitySection>();
 	private readonly compactions = new Map<object, CompactionSection>();
 	private completedBeforeTurn: Set<object> | undefined;
+	private readonly workflows = new WorkflowSources();
+	private lastWidth: number | undefined;
 
 	constructor(
 		private readonly entries: () => readonly TranscriptEntry[],
@@ -139,13 +142,24 @@ export class ActivityTranscript extends ComponentStack {
 		private readonly requestRender: () => void,
 		private readonly timings = new ActivityTimings(),
 		private readonly now: () => number = Date.now,
+		private readonly tui?: TUI,
 	) {
 		super();
 	}
 
+	private readEntries(): readonly TranscriptEntry[] {
+		const entries = this.entries();
+		return this.tui ? this.workflows.read(entries, this.tui.mode, this.lastWidth ?? this.tui.terminal.columns) : entries;
+	}
+
+	invalidate(): void {
+		this.workflows.invalidate();
+		super.invalidate();
+	}
+
 	beginTurn(): void {
 		// Retries and automatic continuations belong to the same activity group.
-		this.completedBeforeTurn ??= new Set(this.entries().map((entry) => entry.key));
+		this.completedBeforeTurn ??= new Set(this.readEntries().map((entry) => entry.key));
 		this.requestRender();
 	}
 
@@ -155,6 +169,7 @@ export class ActivityTranscript extends ComponentStack {
 	}
 
 	render(width: number): string[] {
+		this.lastWidth = width;
 		const children: Component[] = [];
 		const retained = new Set<object>();
 		let pending: ActivityEntry[] = [];
@@ -171,7 +186,7 @@ export class ActivityTranscript extends ComponentStack {
 			retained.add(key);
 			pending = [];
 		};
-		for (const entry of this.entries()) {
+		for (const entry of this.readEntries()) {
 			if (entry.kind === "thinking" || entry.kind === "tool") pending.push(entry);
 			else {
 				flush();

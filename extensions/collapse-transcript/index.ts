@@ -50,6 +50,8 @@ export default function transcriptExtension(pi: ExtensionAPI): void {
 					theme,
 					() => tui.requestRender(),
 					timings,
+					undefined,
+					tui,
 				);
 				return transcript;
 			});

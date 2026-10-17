@@ -13,11 +13,12 @@ const cleanups: (() => void)[] = [];
 import {
 	AssistantMessageComponent,
 	CompactionSummaryMessageComponent,
+	getMarkdownTheme,
 	initTheme,
 	type SessionEntry,
 	ToolExecutionComponent,
 } from "@earendil-works/pi-coding-agent";
-import { Container, ProcessTerminal, Text, TuiAltScreen, visibleWidth } from "@earendil-works/pi-tui";
+import { Container, ProcessTerminal, Text, TuiAltScreen, TuiMainScreen, visibleWidth } from "@earendil-works/pi-tui";
 import { configureTuiAppearance, DEFAULT_TUI_APPEARANCE, sharedMotionScheduler, tuiTheme } from "../../npm/node_modules/@luan.sh/pi-libtui/src/index.ts";
 import type { TuiMouseEvent } from "../../npm/node_modules/@luan.sh/pi-libtui/src/mouse.ts";
 import { mountTranscriptProjection, ToolActivity, type TranscriptEntry } from "../../npm/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
@@ -26,6 +27,9 @@ import { ActivityTranscript, activitySummary } from "../../extensions/collapse-t
 
 
 class TestTui extends TuiAltScreen {
+	requestRender(): void {}
+}
+class TestMainTui extends TuiMainScreen {
 	requestRender(): void {}
 }
 
@@ -49,9 +53,9 @@ function message(content: Parameters<AssistantMessageComponent["updateContent"]>
 	};
 }
 
-function fixture(timings = new ActivityTimings(), now: () => number = () => 0, activeTheme = theme) {
+function fixture(timings = new ActivityTimings(), now: () => number = () => 0, activeTheme = theme, mode: "regular" | "fullscreen" = "fullscreen") {
 	configureTuiAppearance({ activityIndicator: "static", textEffect: "off" });
-	const tui = new TestTui(new ProcessTerminal());
+	const tui = mode === "regular" ? new TestMainTui(new ProcessTerminal()) : new TestTui(new ProcessTerminal());
 	const document = new Container();
 	const chat = new Container();
 	document.addChild(new Container());
@@ -60,7 +64,7 @@ function fixture(timings = new ActivityTimings(), now: () => number = () => 0, a
 	tui.addChild(document);
 	let projection: ActivityTranscript | undefined;
 	const unmount = mountTranscriptProjection(tui, (entries) => {
-		projection = new ActivityTranscript(entries, activeTheme, () => {}, timings, now);
+		projection = new ActivityTranscript(entries, activeTheme, () => {}, timings, now, tui);
 		return projection;
 	});
 	if (!unmount || !projection) throw new Error("Expected a mounted transcript");
@@ -87,6 +91,192 @@ function click(projection: ActivityTranscript, row: number): void {
 	assert.equal(projection.onMouse(event), true);
 	assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 }
+
+for (const language of ["js", "javascript"]) {
+	test(`${language} workflow source folds with its tool and expands once without editing history`, () => {
+		const f = fixture();
+		const source = message([
+			{ type: "text", text: ["```" + language + " workflow", 'return "WORKFLOW_SOURCE";', "```"].join("\n") },
+			{ type: "toolCall", id: "workflow", name: "subagent", arguments: { workflow: true } },
+		]);
+		const saved = JSON.stringify(source);
+		const native = new AssistantMessageComponent(source);
+		const tool = new ToolExecutionComponent("subagent", "workflow", { workflow: true }, undefined, undefined, f.tui, "/tmp");
+		tool.markExecutionStarted();
+		tool.updateResult({ content: [{ type: "text", text: "WORKFLOW_RESULT" }], isError: false });
+		f.chat.addChild(native);
+		f.chat.addChild(tool);
+		const compact = lines(f.document);
+		assert.doesNotMatch(compact.join("\n"), /WORKFLOW_SOURCE|WORKFLOW_RESULT/);
+		assert.equal(compact.filter((line) => line.includes("Worked")).length, 1);
+		const row = compact.findIndex((line) => line.includes("Worked"));
+		click(f.projection, row);
+		const expanded = lines(f.document).join("\n");
+		assert.equal(expanded.match(/WORKFLOW_SOURCE/g)?.length, 1);
+		assert.equal(expanded.match(/WORKFLOW_RESULT/g)?.length, 1);
+		click(f.projection, row);
+		assert.doesNotMatch(lines(f.document).join("\n"), /WORKFLOW_SOURCE|WORKFLOW_RESULT/);
+		assert.equal(JSON.stringify(source), saved);
+		f.unmount();
+		assert.match(lines(f.document).join("\n"), /WORKFLOW_SOURCE/);
+		assert.match(lines(f.document).join("\n"), /WORKFLOW_RESULT/);
+	});
+}
+
+test("workflow splitting preserves surrounding prose, native styling and padding", () => {
+	const f = fixture();
+	const text = ["# Before workflow", "", "```js workflow", 'return "WORKFLOW_SOURCE";', "```", "", "After workflow"].join("\r\n");
+	const source = message([{ type: "text", text }]);
+	const saved = JSON.stringify(source);
+	const markdownTheme = { ...getMarkdownTheme(), heading: (text: string) => `NATIVE_HEADING ${text}` };
+	const native = new AssistantMessageComponent(source, false, markdownTheme, undefined, 3);
+	const original = lines(native);
+	f.chat.addChild(native);
+	const compact = lines(f.document);
+	assert.doesNotMatch(compact.join("\n"), /WORKFLOW_SOURCE/);
+	for (const marker of ["NATIVE_HEADING", "After workflow"])
+		assert.equal(compact.find((line) => line.includes(marker)), original.find((line) => line.includes(marker)));
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	assert.match(lines(f.document).join("\n"), /WORKFLOW_SOURCE/);
+	assert.equal(JSON.stringify(source), saved);
+});
+
+test("whole-message transforms run before folding and cross-span references retain their native context", () => {
+	const fence = "```";
+	for (const kind of ["transformer", "reference"] as const) {
+		const f = fixture();
+		const text = kind === "transformer"
+			? ["Before.", fence + "js workflow", "return 'CONTEXT_SOURCE';", fence, "After."].join("\n")
+			: ["See [reference][id].", "", fence + "js workflow", "return 'CONTEXT_SOURCE';", fence, "", "[id]: https://example.com"].join("\n");
+		const native = new AssistantMessageComponent(message([{ type: "text", text }]), false, undefined, undefined, 1,
+			kind === "transformer" ? [(text) => text + "\n\nNATIVE_FOOTER"] : []);
+		const original = native.render(80);
+		f.chat.addChild(native);
+		const rendered = f.document.render(80);
+		if (kind === "transformer") {
+			assert.equal(rendered.join("\n").match(/NATIVE_FOOTER/g)?.length, 1);
+			assert.doesNotMatch(rendered.join("\n"), /CONTEXT_SOURCE/);
+			native.updateContent(message([{ type: "text", text }]), true);
+			assert.match(lines(f.document).join("\n"), /Working.*Workflow source/);
+			native.updateContent(message([{ type: "text", text }]), false);
+			click(f.projection, lines(f.document).findIndex((line) => line.includes("Worked")));
+			assert.equal(f.document.render(80).join("\n").match(/NATIVE_FOOTER/g)?.length, 1);
+			assert.match(f.document.render(80).join("\n"), /CONTEXT_SOURCE/);
+		} else {
+			assert.ok(rendered.join("\n").includes("https://example.com"), "reference destination must survive");
+			assert.deepEqual(rendered, original, "retain the whole native Markdown context");
+			assert.match(rendered.join("\n"), /CONTEXT_SOURCE/, "fallback keeps source available");
+		}
+	}
+});
+
+test("workflow transforms preserve whole-source context, indentation, width and invalidation", () => {
+	const f = fixture();
+	const fence = "```";
+	const text = ["Before.", fence + "js workflow", "return 'PIPELINE_SOURCE';", fence, "After."].join("\n");
+	let suffix = "FIRST";
+	const native = new AssistantMessageComponent(message([{ type: "text", text }]), false, undefined, undefined, 3, [
+		() => { throw new Error("Native transformer failures retain the preceding Markdown"); },
+		(markdown, context) => {
+			assert.equal(markdown, text);
+			assert.equal(context.messageType, "assistant");
+			return "    INDENTED_PREFIX\n\n" + markdown + "\n\nGLOBAL_FOOTER_" + suffix + "_" + context.availableWidth;
+		},
+	]);
+	const original = lines(native);
+	f.chat.addChild(native);
+	const compact = lines(f.document);
+	assert.equal(compact.find((line) => line.includes("INDENTED_PREFIX")), original.find((line) => line.includes("INDENTED_PREFIX")));
+	assert.match(compact.join("\n"), /GLOBAL_FOOTER_FIRST_74/);
+	assert.doesNotMatch(compact.join("\n"), /PIPELINE_SOURCE/);
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	assert.match(lines(f.document).join("\n"), /PIPELINE_SOURCE/);
+	assert.match(lines(f.document, 60).join("\n"), /GLOBAL_FOOTER_FIRST_54/);
+	suffix = "SECOND";
+	f.projection.invalidate();
+	const updated = lines(f.document, 60).join("\n");
+	assert.match(updated, /GLOBAL_FOOTER_SECOND_54/);
+	assert.doesNotMatch(updated, /GLOBAL_FOOTER_FIRST/);
+	assert.equal(updated.match(/GLOBAL_FOOTER_/g)?.length, 1);
+	assert.match(updated, /PIPELINE_SOURCE/, "invalidation retains disclosure state");
+});
+
+test("width-dependent prefixes preserve workflow disclosure and completed-turn boundaries", () => {
+	const f = fixture();
+	const fence = "```";
+	const source = message([{ type: "text", text: [fence + "js workflow", "return 'WIDTH_SOURCE';", fence].join("\n") }]);
+	f.chat.addChild(new AssistantMessageComponent(source, false, undefined, undefined, 1, [
+		(markdown, context) => context.availableWidth < 70 ? "Narrow layout.\n\n" + markdown : markdown,
+	]));
+	const compact = lines(f.document);
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	f.projection.beginTurn();
+	const resized = lines(f.document, 60).join("\n");
+	assert.match(resized, /Narrow layout/);
+	assert.match(resized, /WIDTH_SOURCE/, "resizing must not close an expanded workflow");
+	assert.match(resized, /Worked/);
+	assert.doesNotMatch(resized, /Working/, "a completed source is not part of the next turn");
+});
+
+test("workflow source stays folded while streaming and retains disclosure through updates", () => {
+	const f = fixture();
+	const source = (body: string) => message([{ type: "text", text: "Preparing.\n\n```js workflow\n" + body }]);
+	const native = new AssistantMessageComponent();
+	native.updateContent(source('const first = "STREAM_ONE";'), true);
+	f.chat.addChild(native);
+	let compact = lines(f.document);
+	assert.match(compact.join("\n"), /Preparing\./);
+	assert.match(compact.join("\n"), /Working.*Workflow source/);
+	assert.doesNotMatch(compact.join("\n"), /STREAM_ONE/);
+	native.updateContent(source('const first = "STREAM_ONE";\nreturn "STREAM_TWO";'), true);
+	compact = lines(f.document);
+	assert.doesNotMatch(compact.join("\n"), /STREAM_ONE|STREAM_TWO/);
+	const row = compact.findIndex((line) => line.includes("Working"));
+	click(f.projection, row);
+	assert.match(lines(f.document).join("\n"), /STREAM_TWO/);
+	native.updateContent(source('const first = "STREAM_ONE";\nreturn "STREAM_THREE";\n```'), false);
+	assert.match(lines(f.document).join("\n"), /STREAM_THREE/);
+	click(f.projection, row);
+	assert.doesNotMatch(lines(f.document).join("\n"), /STREAM_ONE|STREAM_THREE/);
+});
+
+test("ordinary code, nested workflow examples and incomplete final fences remain native content", () => {
+	for (const text of [
+		"```js\nconst ORDINARY_SOURCE = 1;\n```",
+		"````markdown\n```js workflow\nconst ORDINARY_SOURCE = 1;\n```\n````",
+		"~~~~markdown\n```javascript workflow\nconst ORDINARY_SOURCE = 1;\n```\n~~~~",
+		"```js workflow\nconst ORDINARY_SOURCE = 1;",
+	]) {
+		const f = fixture();
+		f.chat.addChild(new AssistantMessageComponent(message([{ type: "text", text }])));
+		const rendered = lines(f.document).join("\n");
+		assert.match(rendered, /ORDINARY_SOURCE/);
+		assert.doesNotMatch(rendered, /Worked|Working/);
+	}
+});
+
+test("workflow fences leave native error, abort and truncation notices visible", () => {
+	for (const stopReason of ["error", "aborted", "length"] as const) {
+		const f = fixture();
+		f.chat.addChild(new AssistantMessageComponent({
+			...message([{ type: "text", text: "```js workflow\nreturn 'FAILED_SOURCE';\n```" }]),
+			stopReason, errorMessage: "FAILED_NOTICE",
+		}));
+		const rendered = lines(f.document).join("\n");
+		assert.match(rendered, /FAILED_SOURCE/);
+		assert.match(rendered, stopReason === "length" ? /truncated/ : /FAILED_NOTICE/);
+		assert.doesNotMatch(rendered, /Worked|Working/);
+	}
+});
+
+test("regular mode keeps workflow source and native scrollback content untouched", () => {
+	const f = fixture(undefined, undefined, undefined, "regular");
+	f.chat.addChild(new AssistantMessageComponent(message([
+		{ type: "text", text: "```js workflow\nreturn 'REGULAR_SOURCE';\n```" },
+	])));
+	assert.match(lines(f.document).join("\n"), /REGULAR_SOURCE/);
+	assert.doesNotMatch(lines(f.document).join("\n"), /Worked|Working/);
+});
 
 test("native thinking and tool rows collapse together and expand with their original content", () => {
 	const f = fixture();
