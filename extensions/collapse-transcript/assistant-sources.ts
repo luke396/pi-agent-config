@@ -16,12 +16,27 @@ interface NativeAssistant {
 interface Part { text: string; kind: "content" | "tool" | "thinking" }
 interface NativeView { text: string; component: AssistantMessageComponent }
 
+/** Backtick spans use matching run lengths and may cross lines within a paragraph. */
+function inlineCodeEnd(text: string, from: number, length: number, streaming: boolean): number {
+	const boundary = /\r?\n(?:[ \t]*\r?\n| {0,3}(?:`{3,}|~{3,}))/.exec(text.slice(from));
+	const paragraphEnd = boundary ? from + boundary.index : text.length;
+	const ticks = /`+/g;
+	ticks.lastIndex = from;
+	for (let match; (match = ticks.exec(text)) && match.index < paragraphEnd;) {
+		if (match[0].length === length) return match.index + length;
+	}
+	// A final unmatched delimiter is literal Markdown. While its paragraph is
+	// still streaming, keep a possible quoted closing tag inside the live fold.
+	return streaming && paragraphEnd === text.length ? text.length : from;
+}
+
 /** Select top-level thinking tags and explicit workflow fences, leaving examples alone. */
 function parts(text: string, streaming: boolean): Part[] {
 	const result: Part[] = [];
 	let start = 0;
 	let offset = 0;
 	let thinking: number | undefined;
+	let codeUntil = 0;
 	let fence: { marker: string; workflow: boolean; start: number } | undefined;
 	const take = (end: number, kind: Part["kind"]) => {
 		// Empty prose slots retain disclosure when a transformer adds a prefix/footer.
@@ -42,7 +57,7 @@ function parts(text: string, streaming: boolean): Part[] {
 			fence = undefined;
 			continue;
 		}
-		const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+		const open = codeUntil <= lineStart ? /^ {0,3}(`{3,}|~{3,})/.exec(line) : null;
 		if (open) {
 			fence = {
 				marker: open[1]!,
@@ -51,12 +66,16 @@ function parts(text: string, streaming: boolean): Part[] {
 			};
 			continue;
 		}
-		if (thinking === undefined && line.startsWith("<thinking>")) thinking = lineStart;
-		if (thinking !== undefined) {
-			const close = line.indexOf("</thinking>");
-			if (close >= 0) {
+		for (const token of line.matchAll(/\\[\s\S]|`+|<\/?thinking>/g)) {
+			const position = lineStart + token.index;
+			if (position < codeUntil || token[0].startsWith("\\")) continue;
+			if (token[0].startsWith("`")) {
+				codeUntil = inlineCodeEnd(text, position + token[0].length, token[0].length, streaming);
+			} else if (token[0] === "<thinking>" && thinking === undefined && token.index === 0) {
+				thinking = lineStart;
+			} else if (token[0] === "</thinking>" && thinking !== undefined) {
 				take(thinking, "content");
-				take(lineStart + close + "</thinking>".length, "thinking");
+				take(position + token[0].length, "thinking");
 				thinking = undefined;
 			}
 		}

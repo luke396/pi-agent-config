@@ -12,8 +12,10 @@ visibility. It replaces the npm folding extension and the former
 - Consecutive thinking/tool entries stay folded, with the upstream summary,
   elapsed time, step count, queue boundaries and compaction disclosure.
 - Top-level `<thinking>…</thinking>` text joins the thinking fold, including
-  unfinished blocks while streaming. Code examples and unfinished final tags
-  stay visible. Expansion retains the original tagged text.
+  unfinished blocks while streaming. Backtick code spans (including multiline
+  spans and partial streamed spans) and escaped tags do not end a thought.
+  Code examples and unfinished final tags stay visible. Expansion retains the
+  original tagged text.
 - Interrupted native thinking stays folded while partial answers and native
   error, abort and truncation notices remain visible outside the fold.
 - Top-level `js workflow` / `javascript workflow` fences join activity as tool

@@ -92,6 +92,91 @@ function click(projection: ActivityTranscript, row: number): void {
 	assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 }
 
+test("literal closing tags inside inline code do not expose the remaining thinking", () => {
+	for (const literal of [
+		"`<thinking>...</thinking>`",
+		"``a ` </thinking> ` b``",
+		"``a ``` </thinking> ``` b``",
+		"`first line\n</thinking>\nlast line`",
+		"\\</thinking>",
+	]) {
+		const f = fixture();
+		const source = message([{ type: "text", text: [
+			"<thinking>**Quoted tag summary**", "",
+			"Discuss the literal " + literal + " marker.", "",
+			"HIDDEN_QUOTED_TAIL", "</thinking>", "", "VISIBLE_QUOTED_ANSWER",
+		].join("\n") }]);
+		const saved = JSON.stringify(source);
+		f.chat.addChild(new AssistantMessageComponent(source));
+		const compact = lines(f.document, 120);
+		assert.doesNotMatch(compact.join("\n"), /HIDDEN_QUOTED_TAIL|<\/?thinking>/, literal);
+		assert.match(compact.join("\n"), /VISIBLE_QUOTED_ANSWER/);
+		click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+		const expanded = lines(f.document, 120).join("\n");
+		assert.equal(expanded.split("HIDDEN_QUOTED_TAIL").length - 1, 1);
+		assert.match(expanded, /VISIBLE_QUOTED_ANSWER/);
+		assert.equal(JSON.stringify(source), saved);
+	}
+});
+
+test("an unfinished streamed code span cannot prematurely close the thinking fold", () => {
+	const f = fixture();
+	const native = new AssistantMessageComponent();
+	f.chat.addChild(native);
+	const prefix = "<thinking>**Streaming quoted tag**\n\nLiteral ";
+	const quoted = "`</thinking>";
+	const suffix = "` stays quoted.\n\nHIDDEN_STREAM_TAIL\n</thinking>\n\nVISIBLE_STREAM_ANSWER";
+	for (let end = 0; end <= quoted.length; end++) {
+		native.updateContent(message([{ type: "text", text: prefix + quoted.slice(0, end) }]), true);
+		assert.doesNotMatch(lines(f.document).join("\n"), /<\/?thinking>|Literal/);
+	}
+	native.updateContent(message([{ type: "text", text: prefix + quoted + suffix }]), true);
+	const compact = lines(f.document);
+	assert.doesNotMatch(compact.join("\n"), /HIDDEN_STREAM_TAIL|<\/?thinking>/);
+	assert.match(compact.join("\n"), /VISIBLE_STREAM_ANSWER/);
+	click(f.projection, compact.findIndex((line) => line.includes("Working")));
+	native.updateContent(message([{ type: "text", text: prefix + quoted + suffix }]), false);
+	f.projection.invalidate();
+	assert.match(lines(f.document, 100).join("\n"), /HIDDEN_STREAM_TAIL/);
+	assert.match(lines(f.document, 100).join("\n"), /VISIBLE_STREAM_ANSWER/);
+});
+
+test("unmatched or escaped backticks do not hide a finished answer", () => {
+	for (const body of ["An unmatched ` marker.", "An escaped \\` marker."]) {
+		const f = fixture();
+		f.chat.addChild(new AssistantMessageComponent(message([{ type: "text", text:
+			"<thinking>**Literal backtick**\n\n" + body + "\nHIDDEN_BACKTICK_TAIL</thinking> VISIBLE_BACKTICK_ANSWER",
+		}])));
+		const rendered = lines(f.document).join("\n");
+		assert.doesNotMatch(rendered, /HIDDEN_BACKTICK_TAIL/);
+		assert.match(rendered, /VISIBLE_BACKTICK_ANSWER/);
+	}
+});
+
+test("an unmatched backtick before a workflow fence does not mask the workflow", () => {
+	const f = fixture();
+	f.chat.addChild(new AssistantMessageComponent(message([{ type: "text", text: [
+		"An unmatched ` marker.",
+		"```js workflow", "return 'WORKFLOW_AFTER_BACKTICK';", "```",
+		"Unrelated ` after the block.",
+	].join("\n") }])));
+	const compact = lines(f.document);
+	assert.match(compact.join("\n"), /Workflow source/);
+	assert.doesNotMatch(compact.join("\n"), /WORKFLOW_AFTER_BACKTICK/);
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	assert.match(lines(f.document).join("\n"), /WORKFLOW_AFTER_BACKTICK/);
+});
+
+test("multiline inline-code examples keep literal thinking tags visible", () => {
+	const f = fixture();
+	const native = new AssistantMessageComponent(message([{ type: "text", text:
+		"Example: `\n<thinking>VISIBLE_CODE_EXAMPLE</thinking>\n`.",
+	}]));
+	const original = lines(native);
+	f.chat.addChild(native);
+	assert.deepEqual(lines(f.document), original);
+});
+
 test("tagged thinking joins native thinking and tools without rewriting history", () => {
 	const f = fixture();
 	const source = message([{ type: "text", text: "<thinking>**Tagged summary**\n\nTAGGED_DETAIL\n</thinking>" }]);

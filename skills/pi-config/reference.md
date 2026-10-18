@@ -33,8 +33,11 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   original tool views. Explicit `js workflow` / `javascript workflow` source
   fences join the activity fold without changing execution input; ordinary code
   and nested examples stay visible. Top-level `<thinking>` text also folds;
-  code examples and unfinished final tags remain visible. Failed native replies
-  fold their thinking separately from their still-visible partial answers and
+  code examples and unfinished final tags remain visible. Treat quoted closing
+  tags inside Markdown code spans as literals: searching for the first closing
+  tag exposed the rest of a real reply. Check streamed prefixes and replay the
+  offending native message, not only a synthetic completed tag pair. Failed native
+  replies fold their thinking separately from their still-visible partial answers and
   error/abort/truncation notices. Neither path rewrites stored messages or provider
   inputs. Grouping remains fullscreen-only.
 - **`@luan.sh/pi-libtui@0.3.15` remains an upstream dependency, deliberately pinned.**
