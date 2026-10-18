@@ -19,6 +19,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Thinking control | [thinking-toggle.ts](extensions/thinking-toggle.ts): model-aware two-stop Shift+Tab; clear the native thinking shortcut as in [keybindings.json](keybindings.json). |
 | Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable pi-libtui's bubbles and animations. |
 | Transcript folding | [collapse-transcript](extensions/collapse-transcript/README.md): locally maintained fork with native images below collapsed activity; expanded groups keep the original tool views. |
+| Infrawaves tool images | [infrawaves-tool-images.ts](extensions/infrawaves-tool-images.ts): request-only image placement compatibility for the tested Anthropic Opus model. |
 | Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
@@ -49,6 +50,25 @@ session; omit or disable the extension to avoid these calls altogether.
 History-based skills require a separately configured `agent-history` CLI and
 archive. Provider accounts, web search, and remote MCP have their own setup and
 data flows; this repo does not provision them.
+
+## Infrawaves tool images
+
+[infrawaves-tool-images.ts](extensions/infrawaves-tool-images.ts) adapts normal
+conversation requests for **`infrawaves/claude-opus-5.5` using `anthropic-messages`**.
+Controlled recognition tests found that this endpoint could read user images but
+not the same images nested in tool results.
+
+The extension moves tool-result images to the same user message's top-level
+content, after all tool results. It retains tool IDs, text, error flags and image
+order, labels each result's images, and keeps Pi's terminal cache marker after the
+attachments. It does not duplicate image data or modify stored messages, tools,
+credentials or endpoints. Historical tool images are adapted again on each request;
+switching to another provider/model leaves its normal request conversion intact.
+
+Run `/reload` after installing or updating it. This uses Pi's conversation request
+hook; independent SDK/extension model calls that bypass that hook are not covered.
+Only the model above is enabled until others are verified. This does **not** alter
+stream parsing/retries or claim to fix `Anthropic stream ended before message_stop`.
 
 ## OpenAI Fast mode
 
@@ -137,13 +157,13 @@ Ignoring a file does not remove its earlier Git history.
 
 ## Tests
 
-Verified with Node.js 26.7.0 and Pi 1.3.0: **91 offline tests passed**. The suite
+Verified with Node.js 26.10.0 and Pi 1.3.0: **112 offline tests passed**. The suite
 uses temporary Git fixtures, fake providers, and native transcript components:
 
 ```sh
 node --test tests/settings-sync.test.mjs tests/*.test.ts \
   tests/astra-fast-compaction.test.mjs tests/openai-fast-mode-provider.test.mjs \
-  tests/collapse-transcript.test.mjs
+  tests/collapse-transcript.test.mjs tests/infrawaves-tool-images-provider.test.mjs
 ```
 
 The Astra and Fast-switch provider tests use the installed `pi` on `PATH` and
@@ -152,9 +172,11 @@ No live credentials are used. The folding and image tests also run inside the
 installed Pi, using the local fork and managed libtui. They preserve the upstream
 behavioral assertions for grouping, timing, queued requests and compaction/history,
 and cover image visibility, conversion/settings, streaming, mouse interaction,
-regular mode and widget lifecycle.
+regular mode and widget lifecycle. The Infrawaves loopback test exercises native
+read/codemode tools, multiple images and tool rounds, mixed successful/error image
+ordering, preserved session history, cache boundaries and provider switching; it does not contact Infrawaves.
 
-The rules integration test is separate from the 91-test run above. It needs an
+The rules integration test is separate from the 112-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
 does not supply those importable modules.
 

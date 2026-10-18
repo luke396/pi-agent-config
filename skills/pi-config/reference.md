@@ -73,6 +73,16 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 
 ## Models and local extensions
 
+- **Infrawaves tool-image compatibility belongs at the outgoing request boundary.**
+  `extensions/infrawaves-tool-images.ts` is scoped to `infrawaves/claude-opus-5.5`
+  on `anthropic-messages`. Real recognition tests found that identical images were
+  invisible inside `tool_result.content` but readable as top-level user images.
+  Keep native tools/history intact and other models untouched. Preserve tool-result
+  ordering, image attribution and the end-of-message cache boundary when lifting
+  images. An HTTP 200 or `message_stop` alone is not a recognition test. This
+  workaround does not fix missing stream terminators, and Pi's conversation hook
+  does not cover independent extension/SDK model calls.
+
 - **Fast defaults on for OpenAI Astra; manual overrides are per-session.**
   `extensions/openai-fast-mode.ts` owns `/fast` (`on` | `off`; a bare `/fast`
   reports the state without switching) for conversation requests on `openai`.
