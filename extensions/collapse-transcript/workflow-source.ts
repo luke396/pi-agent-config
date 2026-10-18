@@ -61,7 +61,6 @@ export class WorkflowSources {
 	private revision = 0;
 	private readonly cache = new WeakMap<object, {
 		message: Message;
-		streaming: boolean;
 		width: number;
 		revision: number;
 		views: NativeView[];
@@ -83,7 +82,7 @@ export class WorkflowSources {
 			typeof native.isStreaming !== "boolean" || typeof native.outputPad !== "number" ||
 			!native.markdownTheme || !Array.isArray(native.markdownTransformers)) return [entry];
 		const previous = this.cache.get(entry.key);
-		if (previous?.message === message && previous.streaming === native.isStreaming &&
+		if (previous?.message === message &&
 			previous.width === width && previous.revision === this.revision) return previous.entries;
 		const text = message.content[0];
 		let split = parts(text.text, native.isStreaming);
@@ -138,7 +137,7 @@ export class WorkflowSources {
 		}
 		views.length = split.length;
 		this.cache.set(entry.key, {
-			message, streaming: native.isStreaming, width, revision: this.revision, views, entries,
+			message, width, revision: this.revision, views, entries,
 		});
 		return entries;
 	}

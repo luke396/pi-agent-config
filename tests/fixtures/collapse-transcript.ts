@@ -92,6 +92,26 @@ function click(projection: ActivityTranscript, row: number): void {
 	assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 }
 
+test("reused workflow messages and streaming-only transitions retain current output", () => {
+	const f = fixture();
+	const source = message([{ type: "text", text: "```js workflow\nreturn 'REUSED_ONE';\n```" }]);
+	const native = new AssistantMessageComponent(source, false, undefined, undefined, 1, [
+		(markdown, context) => markdown + "\n\nSTREAM_CONTEXT_" + context.isStreaming,
+	]);
+	native.updateContent(source, true);
+	f.chat.addChild(native);
+	const compact = lines(f.document);
+	click(f.projection, compact.findIndex((line) => line.includes("Working")));
+	source.content = [{ type: "text", text: "```js workflow\nreturn 'REUSED_TWO';\n```" }];
+	native.updateContent(source, true);
+	assert.match(lines(f.document).join("\n"), /REUSED_TWO/);
+	native.updateContent(source, false);
+	const done = lines(f.document).join("\n");
+	assert.match(done, /REUSED_TWO/);
+	assert.match(done, /STREAM_CONTEXT_false/);
+	assert.doesNotMatch(done, /Working|STREAM_CONTEXT_true|REUSED_ONE/);
+});
+
 for (const language of ["js", "javascript"]) {
 	test(`${language} workflow source folds with its tool and expands once without editing history`, () => {
 		const f = fixture();
