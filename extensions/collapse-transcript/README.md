@@ -11,6 +11,11 @@ visibility. It replaces the npm folding extension and the former
 
 - Consecutive thinking/tool entries stay folded, with the upstream summary,
   elapsed time, step count, queue boundaries and compaction disclosure.
+- Top-level `<thinking>…</thinking>` text joins the thinking fold, including
+  unfinished blocks while streaming. Code examples and unfinished final tags
+  stay visible. Expansion retains the original tagged text.
+- Interrupted native thinking stays folded while partial answers and native
+  error, abort and truncation notices remain visible outside the fold.
 - Top-level `js workflow` / `javascript workflow` fences join activity as tool
   preparation, including while streaming. Surrounding prose, ordinary code and
   nested code examples remain visible; incomplete final fences and native
@@ -47,7 +52,8 @@ private image arrays or walk into tool-detail renderers. Other shapes produce no
 extra preview; the expanded native view remains available. Native instances
 continue to own image settings, IDs, conversion and invalidation.
 
-Workflow source selection is isolated in [workflow-source.ts](workflow-source.ts).
+Tagged thinking and workflow source selection are isolated in
+[assistant-sources.ts](assistant-sources.ts).
 It splits only libtui's single-text assistant views, reusing Pi's native rendering
 with the original theme and padding. Whole-message Markdown transformers run
 before splitting, with native width/streaming context, error handling and
@@ -60,6 +66,12 @@ streaming, resize and invalidation. The original messages, components and
 workflow execution inputs are never rewritten. Plain JavaScript fences remain
 ordinary content, including pi-subagents' untagged
 fallback syntax; the explicit `workflow` tag selects this folding policy.
+
+[interrupted-thinking.ts](interrupted-thinking.ts) handles the whole native
+messages that libtui deliberately leaves unprojected on error, abort or length
+stops. It splits their thinking from prose and reuses Pi's native notice renderer,
+preserving its tool-call suppression rule. This is display-only: stored messages,
+stop reasons and provider requests remain untouched.
 
 ## Baseline and maintenance
 

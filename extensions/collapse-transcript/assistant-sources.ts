@@ -13,51 +13,67 @@ interface NativeAssistant {
 	outputPad: number;
 	markdownTransformers: NonNullable<Options[5]>;
 }
-interface Part { text: string; workflow: boolean }
+interface Part { text: string; kind: "content" | "tool" | "thinking" }
 interface NativeView { text: string; component: AssistantMessageComponent }
 
-/** Match pi-subagents' explicit source fences, without interpreting nested examples. */
+/** Select top-level thinking tags and explicit workflow fences, leaving examples alone. */
 function parts(text: string, streaming: boolean): Part[] {
-	const lines = text.split("\n");
 	const result: Part[] = [];
 	let start = 0;
+	let offset = 0;
+	let thinking: number | undefined;
 	let fence: { marker: string; workflow: boolean; start: number } | undefined;
-	const take = (end: number, workflow: boolean) => {
-		const text = lines.slice(start, end).join("\n");
-		// Empty prose slots keep a workflow view stable when a transformer adds a prefix/footer.
-		result.push({ text, workflow });
+	const take = (end: number, kind: Part["kind"]) => {
+		// Empty prose slots retain disclosure when a transformer adds a prefix/footer.
+		result.push({ text: text.slice(start, end), kind });
 		start = end;
 	};
-	for (const [index, raw] of lines.entries()) {
+	for (const raw of text.split("\n")) {
+		const lineStart = offset;
+		offset += raw.length + 1;
 		const line = raw.replace(/\r$/, "");
-		if (!fence) {
-			const open = /^(`{3,}|~{3,})/.exec(line);
-			if (open) fence = {
+		if (fence) {
+			const close = /^ {0,3}(`{3,}|~{3,})[ \t]*$/.exec(line);
+			if (!close || close[1]![0] !== fence.marker[0] || close[1]!.length < fence.marker.length) continue;
+			if (fence.workflow) {
+				take(fence.start, "content");
+				take(lineStart + raw.length, "tool");
+			}
+			fence = undefined;
+			continue;
+		}
+		const open = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+		if (open) {
+			fence = {
 				marker: open[1]!,
-				workflow: /^```(?:js|javascript) workflow[ \t]*$/.test(line),
-				start: index,
+				workflow: thinking === undefined && /^```(?:js|javascript) workflow[ \t]*$/.test(line),
+				start: lineStart,
 			};
 			continue;
 		}
-		const close = /^(`{3,}|~{3,})[ \t]*$/.exec(line);
-		if (!close || close[1]![0] !== fence.marker[0] || close[1]!.length < fence.marker.length) continue;
-		if (fence.workflow) {
-			take(fence.start, false);
-			take(index + 1, true);
+		if (thinking === undefined && line.startsWith("<thinking>")) thinking = lineStart;
+		if (thinking !== undefined) {
+			const close = line.indexOf("</thinking>");
+			if (close >= 0) {
+				take(thinking, "content");
+				take(lineStart + close + "</thinking>".length, "thinking");
+				thinking = undefined;
+			}
 		}
-		fence = undefined;
 	}
-	// Source is already tool preparation while streaming. An unfinished final
-	// block stays visible, as do the native error/abort/truncation notices below.
-	if (streaming && fence?.workflow) {
-		take(fence.start, false);
-		take(lines.length, true);
-	} else take(lines.length, false);
+	// An unfinished final block stays native; a live block can already be folded.
+	if (streaming && thinking !== undefined) {
+		take(thinking, "content");
+		take(text.length, "thinking");
+	} else if (streaming && fence?.workflow) {
+		take(fence.start, "content");
+		take(text.length, "tool");
+	} else take(text.length, "content");
 	return result;
 }
 
-/** Project workflow tool inputs without changing messages or the original views. */
-export class WorkflowSources {
+/** Project tagged thinking and workflow source without rewriting messages or original views. */
+export class AssistantSources {
 	private revision = 0;
 	private readonly cache = new WeakMap<object, {
 		message: Message;
@@ -88,7 +104,7 @@ export class WorkflowSources {
 		let split = parts(text.text, native.isStreaming);
 		const views = previous?.views ?? [];
 		let entries: TranscriptEntry[] = [entry];
-		if (split.some((part) => part.workflow)) {
+		if (split.some((part) => part.kind !== "content")) {
 			// Match native Markdown's whole-source transform boundary. Pi includes
 			// its Mermaid transformer even when no extension registers one.
 			let markdown = text.text.trim();
@@ -106,11 +122,11 @@ export class WorkflowSources {
 				}
 			}
 			split = parts(markdown, native.isStreaming);
-			const prose = split.filter((part) => !part.workflow && part.text.trim());
+			const prose = split.filter((part) => part.kind === "content" && part.text.trim());
 			// Definitions can bind links across prose spans; keep that complete
 			// Markdown context instead of splitting it into independent parsers.
 			if (prose.length > 1 && prose.some((part) => part.text.includes("]:")))
-				split = [{ text: markdown, workflow: false }];
+				split = [{ text: markdown, kind: "content" }];
 			entries = split.flatMap((part, index): TranscriptEntry[] => {
 				if (!part.text.trim()) return [];
 				let view = views[index];
@@ -127,12 +143,14 @@ export class WorkflowSources {
 				// formatter-added indentation without reapplying whole-message hooks.
 				view.text = part.text;
 				view.component.updateContent({ ...message, content: [{ ...text, text: part.text }] }, native.isStreaming);
-				return [part.workflow
-					? {
-						kind: "tool", key: view.component, component: view.component, summary: "Workflow source",
-						running: native.isStreaming, failed: false,
-					}
-					: { kind: "content", key: view.component, component: view.component }];
+				if (part.kind === "content")
+					return [{ kind: "content", key: view.component, component: view.component }];
+				return [{
+					kind: part.kind, key: view.component, component: view.component,
+					summary: part.kind === "tool" ? "Workflow source" : part.text.replace(/^<thinking>|<\/thinking>$/g, "").trim(),
+					timestamp: part.kind === "thinking" ? message.timestamp : undefined,
+					running: native.isStreaming, failed: false,
+				}];
 			});
 		}
 		views.length = split.length;

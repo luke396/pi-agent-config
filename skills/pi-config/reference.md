@@ -32,7 +32,11 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   private section state. Images are visible while folded; expansion retains the
   original tool views. Explicit `js workflow` / `javascript workflow` source
   fences join the activity fold without changing execution input; ordinary code
-  and nested examples stay visible. Grouping remains fullscreen-only.
+  and nested examples stay visible. Top-level `<thinking>` text also folds;
+  code examples and unfinished final tags remain visible. Failed native replies
+  fold their thinking separately from their still-visible partial answers and
+  error/abort/truncation notices. Neither path rewrites stored messages or provider
+  inputs. Grouping remains fullscreen-only.
 - **`@luan.sh/pi-libtui@0.3.15` remains an upstream dependency, deliberately pinned.**
   The standalone source matched the previously bundled library. Keep its extension
   enabled for codemode presentation, mouse/scrolling and the native history bridge;

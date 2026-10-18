@@ -12,7 +12,8 @@ import { foldTargetAt } from "../../npm/node_modules/@luan.sh/pi-libtui/src/fold
 import { ActivityTimings, formatActivityDuration } from "./activity-timing.ts";
 import { CompactionSection } from "./compaction-section.ts";
 import { renderToolImages } from "./native-tool-images.ts";
-import { WorkflowSources } from "./workflow-source.ts";
+import { AssistantSources } from "./assistant-sources.ts";
+import { InterruptedThinking } from "./interrupted-thinking.ts";
 
 type ActivityEntry = Extract<TranscriptEntry, { kind: "thinking" | "tool" }>;
 
@@ -133,7 +134,8 @@ export class ActivityTranscript extends ComponentStack {
 	private readonly sections = new Map<object, ActivitySection>();
 	private readonly compactions = new Map<object, CompactionSection>();
 	private completedBeforeTurn: Set<object> | undefined;
-	private readonly workflows = new WorkflowSources();
+	private readonly sources = new AssistantSources();
+	private readonly interrupted = new InterruptedThinking();
 	private lastWidth: number | undefined;
 
 	constructor(
@@ -149,11 +151,12 @@ export class ActivityTranscript extends ComponentStack {
 
 	private readEntries(): readonly TranscriptEntry[] {
 		const entries = this.entries();
-		return this.tui ? this.workflows.read(entries, this.tui.mode, this.lastWidth ?? this.tui.terminal.columns) : entries;
+		if (this.tui?.mode !== "fullscreen") return entries;
+		return this.interrupted.read(this.sources.read(entries, this.tui.mode, this.lastWidth ?? this.tui.terminal.columns));
 	}
 
 	invalidate(): void {
-		this.workflows.invalidate();
+		this.sources.invalidate();
 		super.invalidate();
 	}
 

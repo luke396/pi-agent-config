@@ -92,6 +92,166 @@ function click(projection: ActivityTranscript, row: number): void {
 	assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 }
 
+test("tagged thinking joins native thinking and tools without rewriting history", () => {
+	const f = fixture();
+	const source = message([{ type: "text", text: "<thinking>**Tagged summary**\n\nTAGGED_DETAIL\n</thinking>" }]);
+	const saved = JSON.stringify(source);
+	f.chat.addChild(new AssistantMessageComponent(source));
+	f.chat.addChild(new AssistantMessageComponent(message([{ type: "thinking", thinking: "**Native summary**\n\nNATIVE_DETAIL" }])));
+	const tool = new ToolExecutionComponent("read", "tagged", {}, undefined, undefined, f.tui, "/tmp");
+	tool.updateResult({ content: [{ type: "text", text: "TAGGED_TOOL_RESULT" }], isError: false });
+	f.chat.addChild(tool);
+	const compact = lines(f.document);
+	assert.doesNotMatch(compact.join("\n"), /TAGGED_DETAIL|NATIVE_DETAIL|TAGGED_TOOL_RESULT|<\/?thinking>/);
+	assert.equal(compact.filter((line) => line.includes("Worked")).length, 1);
+	assert.match(compact.join("\n"), /3 steps/);
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	const expanded = lines(f.document).join("\n");
+	for (const marker of ["TAGGED_DETAIL", "NATIVE_DETAIL", "TAGGED_TOOL_RESULT"])
+		assert.equal(expanded.split(marker).length - 1, 1);
+	assert.equal(JSON.stringify(source), saved);
+	f.unmount();
+	assert.match(lines(f.document).join("\n"), /<thinking>/);
+});
+
+test("tagged thinking preserves surrounding prose and whole-message transforms", () => {
+	const f = fixture();
+	const source = message([{ type: "text", text: "Before.\n\n<thinking>**Brief summary**\n\nTAGGED_DETAIL\n</thinking>\n\nAfter." }]);
+	const native = new AssistantMessageComponent(source, false, undefined, undefined, 3, [
+		(markdown) => markdown + "\n\nONE_FOOTER",
+	]);
+	f.chat.addChild(native);
+	const compact = lines(f.document);
+	assert.match(compact.join("\n"), /Before\./);
+	assert.match(compact.join("\n"), /After\./);
+	assert.doesNotMatch(compact.join("\n"), /TAGGED_DETAIL|<\/?thinking>/);
+	assert.equal(compact.join("\n").split("ONE_FOOTER").length - 1, 1);
+	click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+	assert.equal(lines(f.document).join("\n").split("ONE_FOOTER").length - 1, 1);
+	assert.match(lines(f.document).join("\n"), /TAGGED_DETAIL/);
+});
+
+test("tagged thinking stays folded while streaming and retains expansion after completion", () => {
+	const f = fixture();
+	const initial = "<thinking>**Live summary**\n\nSTREAM_THOUGHT";
+	const source = message([{ type: "text", text: initial }]);
+	const native = new AssistantMessageComponent();
+	native.updateContent(source, true);
+	f.chat.addChild(native);
+	const compact = lines(f.document);
+	assert.match(compact.join("\n"), /Working.*Live summary/);
+	assert.doesNotMatch(compact.join("\n"), /STREAM_THOUGHT|<thinking>/);
+	click(f.projection, compact.findIndex((line) => line.includes("Working")));
+	source.content = [{ type: "text", text: initial + "\nMORE_THOUGHT\n</thinking>\n\nVisible answer." }];
+	native.updateContent(source, false);
+	const complete = lines(f.document).join("\n");
+	assert.match(complete, /STREAM_THOUGHT/);
+	assert.match(complete, /MORE_THOUGHT/);
+	assert.match(complete, /Visible answer/);
+	assert.doesNotMatch(complete, /Working/);
+});
+
+test("thinking examples, incomplete final tags and regular scrollback stay visible", () => {
+	for (const text of [
+		"```xml\n<thinking>EXAMPLE_DETAIL</thinking>\n```",
+		"````markdown\n<thinking>EXAMPLE_DETAIL</thinking>\n````",
+		"Example:\n\n  ```xml\n<thinking>EXAMPLE_DETAIL</thinking>\n  ```",
+		"    <thinking>EXAMPLE_DETAIL</thinking>",
+		"> <thinking>EXAMPLE_DETAIL</thinking>",
+		"Explain `<thinking>EXAMPLE_DETAIL</thinking>`.",
+		"<thinking>EXAMPLE_DETAIL",
+	]) {
+		const f = fixture();
+		const native = new AssistantMessageComponent(message([{ type: "text", text }]));
+		const original = lines(native);
+		f.chat.addChild(native);
+		assert.deepEqual(lines(f.document), original);
+	}
+	const regular = fixture(undefined, undefined, undefined, "regular");
+	regular.chat.addChild(new AssistantMessageComponent(message([{ type: "text", text: "<thinking>REGULAR_THOUGHT</thinking>" }])));
+	assert.match(lines(regular.document).join("\n"), /<thinking>REGULAR_THOUGHT<\/thinking>/);
+	assert.doesNotMatch(lines(regular.document).join("\n"), /Worked|Working/);
+});
+
+test("interrupted native thinking folds while partial answers and native notices remain visible", () => {
+	for (const stopReason of ["error", "aborted", "length"] as const) {
+		const f = fixture();
+		const source = {
+			...message([
+				{ type: "thinking" as const, thinking: "**Interrupted summary**\n\nINTERRUPTED_DETAIL" },
+				{ type: "text" as const, text: "Partial answer." },
+			]),
+			stopReason, errorMessage: "STREAM_FAILED",
+		};
+		const saved = JSON.stringify(source);
+		f.chat.addChild(new AssistantMessageComponent(source));
+		const compact = lines(f.document);
+		assert.doesNotMatch(compact.join("\n"), /INTERRUPTED_DETAIL/);
+		assert.match(compact.join("\n"), /Partial answer/);
+		const notice = stopReason === "length" ? "Response was truncated before completion." : "STREAM_FAILED";
+		assert.equal(compact.join("\n").split(notice).length - 1, 1);
+		click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+		const expanded = lines(f.document).join("\n");
+		assert.match(expanded, /INTERRUPTED_DETAIL/);
+		assert.equal(expanded.split(notice).length - 1, 1);
+		assert.equal(JSON.stringify(source), saved);
+		f.unmount();
+		assert.match(lines(f.document).join("\n"), /INTERRUPTED_DETAIL/);
+	}
+});
+
+test("tagged thinking handles same-line closers and keeps fenced tags inside the thought", () => {
+	const f = fixture();
+	f.chat.addChild(new AssistantMessageComponent(message([{ type: "text", text: [
+		"<thinking>**First thought**\n\nFIRST_DETAIL</thinking> Visible answer.",
+		"",
+		"<thinking>**Second thought**\n\nSECOND_DETAIL",
+		"```xml", "</thinking>", "```",
+		"STILL_INSIDE", "</thinking>", "", "Last answer.",
+	].join("\n") }])));
+	const compact = lines(f.document);
+	assert.doesNotMatch(compact.join("\n"), /FIRST_DETAIL|SECOND_DETAIL|STILL_INSIDE|<\/?thinking>/);
+	assert.match(compact.join("\n"), /Visible answer/);
+	assert.match(compact.join("\n"), /Last answer/);
+	click(f.projection, compact.findIndex((line) => line.includes("Second thought")));
+	assert.match(lines(f.document).join("\n"), /SECOND_DETAIL/);
+	assert.match(lines(f.document).join("\n"), /STILL_INSIDE/);
+});
+
+test("interrupted views retain disclosure on updates and preserve native tool-call notices", () => {
+	for (const stopReason of ["error", "aborted", "length"] as const) {
+		const f = fixture();
+		const source = {
+			...message([
+				{ type: "thinking" as const, thinking: "**Interrupted**\n\nBEFORE_UPDATE" },
+				{ type: "toolCall" as const, id: "partial-call", name: "read", arguments: {} },
+			]),
+			stopReason, errorMessage: "NATIVE_TOOL_NOTICE",
+		};
+		const native = new AssistantMessageComponent(source);
+		const original = lines(native).join("\n");
+		f.chat.addChild(native);
+		const compact = lines(f.document);
+		assert.doesNotMatch(compact.join("\n"), /BEFORE_UPDATE/);
+		for (const notice of ["NATIVE_TOOL_NOTICE", "Response was truncated"])
+			assert.equal(compact.join("\n").includes(notice), original.includes(notice));
+		click(f.projection, compact.findIndex((line) => line.includes("Worked")));
+		source.content[0] = { type: "thinking", thinking: "**Interrupted**\n\nAFTER_UPDATE" };
+		native.updateContent(source);
+		f.projection.invalidate();
+		assert.match(lines(f.document, 60).join("\n"), /AFTER_UPDATE/);
+		assert.doesNotMatch(lines(f.document, 60).join("\n"), /BEFORE_UPDATE/);
+	}
+	const regular = fixture(undefined, undefined, undefined, "regular");
+	const native = new AssistantMessageComponent({
+		...message([{ type: "thinking", thinking: "REGULAR_INTERRUPTED" }]),
+		stopReason: "error", errorMessage: "REGULAR_ERROR",
+	});
+	const original = lines(native);
+	regular.chat.addChild(native);
+	assert.deepEqual(lines(regular.document), original);
+});
+
 test("reused workflow messages and streaming-only transitions retain current output", () => {
 	const f = fixture();
 	const source = message([{ type: "text", text: "```js workflow\nreturn 'REUSED_ONE';\n```" }]);
