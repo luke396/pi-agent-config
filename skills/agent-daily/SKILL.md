@@ -11,15 +11,24 @@ editorial and diary-writing contract.
 
 ## Select the day's increment
 
-Resolve the calendar day and timezone from the request and established context,
-using the actual local clock when needed; clarify unresolved ambiguity. Make
-the date explicit and label today's report as partial.
+Resolve one reporting timezone from the request and established context,
+using the actual local clock when needed; clarify unresolved ambiguity. Apply
+that timezone to every device and session type.
+
+By default, reporting date D covers `[D 04:00, (D+1) 04:00)` in that timezone;
+honor an explicitly requested cutoff or time range. Interpret "today" as the
+workday containing the current local time and "yesterday" as the preceding
+workday. Before 04:00, "today" therefore carries the previous calendar date.
+An explicit date selects that date's workday window. Make the reporting date
+explicit in the title; label a still-open report as partial and include the
+actual as-of date and time.
 
 Include all synced devices, projects and session types unless the user narrows
 scope, including children, one-shot and automated sessions. Paginate candidate
 results. Active-session date filters do not isolate that day's messages: cover
-timezone boundaries, then select by message timestamp. Content can embed
-`[Thinking]` blocks even when `thinking_text` is empty; exclude those too.
+the full reporting window across calendar and timezone boundaries, then select
+by message timestamp. Content can embed `[Thinking]` blocks even when
+`thinking_text` is empty; exclude those too.
 
 Merge related work across sessions, forks and parent/child reports. Earlier
 context may explain an item, but report only its change and final state within
@@ -46,10 +55,11 @@ follow-ups by date and topic.
 
 ## Save into the existing diary
 
-When saving is authorized, discover the destination and existing naming/layout
-from private local context or ask. Add or update only the **Agent 日报** section
-at the appropriate heading level. Preserve unrelated text and personal
-annotations, including annotations inside the section; use targeted edits or
+When saving is authorized, select the diary entry by the reporting date.
+Discover the destination and existing naming/layout from private local context
+or ask. Add or update only the **Agent 日报** section at the appropriate heading
+level. Preserve unrelated text and personal annotations, including annotations
+inside the section; use targeted edits or
 ask when replacement would discard them. Update the same-day section rather
 than append a duplicate.
 
