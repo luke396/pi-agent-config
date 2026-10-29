@@ -23,6 +23,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
+| Config update reminder | [config-update-notice.ts](extensions/config-update-notice.ts): background upstream check at interactive startup; notification only, no automatic sync. |
 
 [settings.json](settings.json) lists current packages and preferences;
 [mcp.json](mcp.json) declares the DeepWiki server.
@@ -144,6 +145,17 @@ explicitly to upgrade existing packages. Most package references are unpinned,
 so installation and updates can fetch newer code and run dependency scripts.
 `pi-libtui` is pinned to the version checked with the local folding fork.
 
+The local config-update reminder checks this checkout's current upstream with
+`git ls-remote` in the background at interactive session startup, including
+`/reload`. It notifies when the remote tip is not incorporated locally and shows
+an explicit `git -C <checkout> pull --ff-only` command. Review local changes before
+syncing; divergent branches need manual reconciliation. Reload or restart Pi
+after syncing. It never fetches, pulls, changes Git refs/files, or records state.
+Already-synced and local-ahead checkouts stay quiet. Offline mode, non-TUI sessions,
+subagents, detached HEAD, missing upstream and unavailable repositories are skipped;
+check failures stay quiet. The whole check has a five-second deadline; shutdown
+or timeout also stops Git's SSH/HTTPS transport processes (POSIX process group).
+
 New-machine steps and the first-login caveat are in the [setup header](setup.sh).
 Back up existing configuration before replacement; do not force-checkout over
 it. Run setup only in the intended agent directory, matching
@@ -175,6 +187,14 @@ and cover image visibility, conversion/settings, streaming, mouse interaction,
 regular mode and widget lifecycle. The Infrawaves loopback test exercises native
 read/codemode tools, multiple images and tool rounds, mixed successful/error image
 ordering, preserved session history, cache boundaries and provider switching; it does not contact Infrawaves.
+
+The startup config reminder has a separate offline suite using temporary local
+Git remotes. It covers current, ahead, behind and divergent checkouts, preservation
+of local/staged work and refs, skip conditions, cancellation and timeout:
+
+```sh
+node --test tests/config-update-notice.test.mjs
+```
 
 The rules integration test is separate from the 112-test run above. It needs an
 npm-installed Pi on `PATH` exposing `dist/core`; the standalone Pi distribution
