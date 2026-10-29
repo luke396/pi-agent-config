@@ -26,6 +26,8 @@ run-history.jsonl
 /pi-hermes-memory
 /projects-memory
 /hermes-memory-config.json
+# Hermes lock database and SQLite sidecars are machine-local runtime state.
+/.pi-hermes-locks.sqlite*
 # pi-config-sync clean/smudge filter and this machine's settings fields.
 # Includes defaultProvider/defaultModel: choices depend on local models/auth.
 /.git-sync/
