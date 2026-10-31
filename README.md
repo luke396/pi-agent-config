@@ -20,7 +20,7 @@ working principles, task-specific skills, local extensions, and package choices.
 | Quiet display | [quiet-tui.ts](extensions/quiet-tui.ts): disable pi-libtui's bubbles and animations. |
 | Transcript folding | [collapse-transcript](extensions/collapse-transcript/README.md): locally maintained fork with native images below collapsed activity; expanded groups keep the original tool views. |
 | Infrawaves tool images | [infrawaves-tool-images.ts](extensions/infrawaves-tool-images.ts): request-only image placement compatibility for the tested Anthropic Opus model. |
-| Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults on for `openai/gpt-6-astra`; `/fast on` and `/fast off` override it for the session. |
+| Conversation Fast mode | [openai-fast-mode.ts](extensions/openai-fast-mode.ts): defaults off; `/fast on` and `/fast off` control it for the session. |
 | Astra compaction | [astra-fast-compaction.ts](extensions/astra-fast-compaction.ts): request Fast (`priority`) only when compacting `openai/gpt-6-astra`. |
 | Settings sync | [settings-sync.ts](extensions/settings-sync.ts), [setup.sh](setup.sh), and [.gitignore](.gitignore). |
 | Config update reminder | [config-update-notice.ts](extensions/config-update-notice.ts): background upstream check at interactive startup; notification only, no automatic sync. |
@@ -73,15 +73,14 @@ stream parsing/retries or claim to fix `Anthropic stream ended before message_st
 
 ## OpenAI Fast mode
 
-Fast (`service_tier: "priority"`) defaults on when `openai/gpt-6-astra` is
-selected, for conversation requests including their cache-warming replays.
-Other models default off. Until explicitly overridden, this default follows
-model changes; the footer shows `fast` while active.
+Fast (`service_tier: "priority"`) defaults off for every model. When enabled,
+it applies to conversation requests including their cache-warming replays;
+the footer shows `fast` while active.
 
-`/fast on` and `/fast off` override the default for the current session. A manual
-choice survives model changes; on applies to all `openai` models and is inactive
-on other providers. `/fast` reports the state without changing it. New, resumed,
-forked, or reloaded sessions return to the selected model's default.
+`/fast on` and `/fast off` control Fast for the current session. A manual choice
+survives model changes; on applies to all `openai` models and is inactive on
+other providers. `/fast` reports the state without changing it. New, resumed,
+forked, or reloaded sessions start with Fast off.
 
 `/fast off` removes only this extension's override: a tier set in local
 `models.json` remains in effect, so off does not guarantee Standard pricing.

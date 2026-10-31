@@ -46,14 +46,10 @@ function fixture(model: { provider: string; id: string } = astra) {
 	};
 }
 
-test("Astra starts with Fast on without a command", () => {
+test("Astra starts with Fast off without a command", () => {
 	const f = fixture();
-	assert.deepEqual(f.payload({ model: "gpt-6-astra", input: "hi" }), {
-		model: "gpt-6-astra",
-		input: "hi",
-		service_tier: "priority",
-	});
-	assert.equal(f.lastStatus(), "fast");
+	assert.equal(f.payload({ model: "gpt-6-astra", input: "hi" }), undefined);
+	assert.equal(f.lastStatus(), undefined);
 	assert.deepEqual(f.messages(), []);
 });
 
@@ -70,11 +66,11 @@ test("other models and providers start with Fast off", () => {
 	}
 });
 
-test("the default follows the selected model until manually overridden", () => {
+test("Fast stays off by default when switching models", () => {
 	const f = fixture({ provider: "openai", id: "gpt-6.1-sol" });
 	f.selectModel(astra);
-	assert.equal(f.payload({ model: astra.id })?.service_tier, "priority");
-	assert.equal(f.lastStatus(), "fast");
+	assert.equal(f.payload({ model: astra.id }), undefined);
+	assert.equal(f.lastStatus(), undefined);
 	f.selectModel({ provider: "openai", id: "gpt-6.1-sol" });
 	assert.equal(f.payload({ model: "gpt-6.1-sol" }), undefined);
 	assert.equal(f.lastStatus(), undefined);
@@ -82,12 +78,13 @@ test("the default follows the selected model until manually overridden", () => {
 	assert.equal(f.payload({ model: astra.id }), undefined);
 	assert.equal(f.lastStatus(), undefined);
 	f.selectModel(astra);
-	assert.equal(f.payload({ model: astra.id })?.service_tier, "priority");
-	assert.equal(f.lastStatus(), "fast");
+	assert.equal(f.payload({ model: astra.id }), undefined);
+	assert.equal(f.lastStatus(), undefined);
 });
 
 test("manual off survives switching away from and back to Astra", () => {
 	const f = fixture();
+	f.run("on");
 	f.run("off");
 	assert.equal(f.payload({ model: astra.id }), undefined);
 	assert.equal(f.lastStatus(), undefined);
@@ -97,12 +94,13 @@ test("manual off survives switching away from and back to Astra", () => {
 	assert.equal(f.lastStatus(), undefined);
 });
 
-test("a new runtime uses the model default instead of a previous manual override", () => {
+test("a new runtime defaults off after a previous manual on", () => {
 	const previous = fixture();
-	previous.run("off");
+	previous.run("on");
+	assert.equal(previous.payload({ model: astra.id })?.service_tier, "priority");
 	const next = fixture();
-	assert.equal(next.payload({ model: astra.id })?.service_tier, "priority");
-	assert.equal(next.lastStatus(), "fast");
+	assert.equal(next.payload({ model: astra.id }), undefined);
+	assert.equal(next.lastStatus(), undefined);
 });
 
 test("fast on requests the priority spelling in the body", () => {
@@ -138,11 +136,12 @@ test("a bare command reports the current state without switching", () => {
 	assert.deepEqual(f.messages(), ["Fast mode: off", "Fast mode: on", "Fast mode: on"]);
 });
 
-test("a bare command reports Astra's default without pinning it on", () => {
+test("a bare command reports Astra's default without enabling it", () => {
 	const f = fixture();
 	f.run();
-	assert.deepEqual(f.messages(), ["Fast mode: on"]);
-	assert.equal(f.lastStatus(), "fast");
+	assert.deepEqual(f.messages(), ["Fast mode: off"]);
+	assert.equal(f.payload({ model: astra.id }), undefined);
+	assert.equal(f.lastStatus(), undefined);
 	f.selectModel({ provider: "openai", id: "gpt-6.1-sol" });
 	assert.equal(f.payload({ model: "gpt-6.1-sol" }), undefined);
 	assert.equal(f.lastStatus(), undefined);
@@ -151,6 +150,8 @@ test("a bare command reports Astra's default without pinning it on", () => {
 test("Fast overrides the configured tier without mutating it; off leaves it alone", () => {
 	const f = fixture();
 	const configured = { model: astra.id, service_tier: "flex", input: "hi" };
+	assert.equal(f.payload(configured), undefined);
+	f.run("on");
 	assert.deepEqual(f.payload(configured), { ...configured, service_tier: "priority" });
 	assert.equal(configured.service_tier, "flex");
 	f.run("off");

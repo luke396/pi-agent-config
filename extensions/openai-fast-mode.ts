@@ -1,4 +1,4 @@
-// Fast defaults on for OpenAI Astra, with a manual per-session override.
+// Fast defaults off, with a manual per-session switch.
 //
 // Fast travels in the request body as `service_tier`. OpenAI documents "fast"
 // and "priority" as the same tier, and this endpoint rejects the literal "fast"
@@ -9,9 +9,8 @@
 // effect. That is why the command asks for on/off instead of claiming the
 // request is Standard.
 //
-// Until /fast on|off is used, the default follows the selected model. Pi
-// recreates the runtime for new, resumed or forked sessions, so those return
-// to the model default rather than inheriting a manual override.
+// Pi recreates the runtime for new, resumed or forked sessions, so those
+// start with Fast off rather than inheriting the previous session's choice.
 // Requests that Pi derives itself (compaction, nested model calls) do not pass
 // this hook, so they keep their own tier.
 
@@ -20,12 +19,10 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const STATUS_KEY = "fast-mode";
 
 export default function (pi: ExtensionAPI) {
-	let fastOverride: boolean | undefined;
-	const isFast = (ctx: ExtensionContext) =>
-		fastOverride ?? (ctx.model?.provider === "openai" && ctx.model.id === "gpt-6-astra");
+	let fastEnabled = false;
 
 	const updateStatus = (ctx: ExtensionContext) => {
-		if (!isFast(ctx)) {
+		if (!fastEnabled) {
 			ctx.ui.setStatus(STATUS_KEY, undefined);
 			return;
 		}
@@ -33,7 +30,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	pi.on("before_provider_request", (event, ctx) => {
-		if (!isFast(ctx) || ctx.model?.provider !== "openai") return;
+		if (!fastEnabled || ctx.model?.provider !== "openai") return;
 		return { ...(event.payload as Record<string, unknown>), service_tier: "priority" };
 	});
 
@@ -46,13 +43,13 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			if (requested) fastOverride = requested === "on";
-			ctx.ui.notify(isFast(ctx) ? "Fast mode: on" : "Fast mode: off", "info");
+			if (requested) fastEnabled = requested === "on";
+			ctx.ui.notify(fastEnabled ? "Fast mode: on" : "Fast mode: off", "info");
 			updateStatus(ctx);
 		},
 	});
 
-	// Show the default at startup and follow the selected model thereafter.
+	// Refresh the status at startup and when the selected model changes.
 	pi.on("session_start", (_event, ctx) => updateStatus(ctx));
 	pi.on("model_select", (_event, ctx) => updateStatus(ctx));
 }

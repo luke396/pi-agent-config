@@ -86,7 +86,7 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   workaround does not fix missing stream terminators, and Pi's conversation hook
   does not cover independent extension/SDK model calls.
 
-- **Fast defaults on for OpenAI Astra; manual overrides are per-session.**
+- **Fast defaults off for every model; manual controls are per-session.**
   `extensions/openai-fast-mode.ts` owns `/fast` (`on` | `off`; a bare `/fast`
   reports the state without switching) for conversation requests on `openai`.
   A footer status (`fast` / `fast (inactive)`) carries the state between commands,
@@ -106,12 +106,11 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   `buildBaseOptions` never sets `serviceTier`, and this endpoint echoes
   `default` — so the shown amount is computed as if the tier were unset; if the
   server does bill Fast, it is low.
-  Without a manual override, Fast follows the selected model: on only for
-  `openai/gpt-6-astra`, off otherwise. `/fast on|off` overrides that default for
-  the session and survives model changes. New, resumed, forked, or reloaded
-  sessions return to the model default because pi recreates the extension
-  runtime. The `session_start` status refresh makes the default visible before
-  the first command. `pi-codex-fast-mode` remains uninstalled.
+  Fast stays off until `/fast on`; the manual choice survives model changes.
+  New, resumed, forked, or reloaded sessions start with Fast off because pi
+  recreates the extension runtime. The `session_start` status refresh clears
+  any previous status before the first command. `pi-codex-fast-mode` remains
+  uninstalled.
 - **Tier spelling was checked on this account.** In a 2026-10-01 ChatGPT OAuth
   check, `"fast"` was rejected with HTTP 400, while `"priority"` completed
   successfully. The response still reported `"default"`, so this verified the

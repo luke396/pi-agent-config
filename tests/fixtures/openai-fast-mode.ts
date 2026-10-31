@@ -75,7 +75,7 @@ export default async function (pi: ExtensionAPI) {
 				await ctx.waitForIdle();
 				assert.ok(request, "no provider request reached the loopback endpoint");
 				assert.equal(request.body.model, "gpt-6-astra");
-				assert.equal(request.body.service_tier, state === "off" ? undefined : "priority");
+				assert.equal(request.body.service_tier, state === "on" ? "priority" : undefined);
 				// Fast is a body field; no routing header belongs to this switch.
 				assert.equal(request.headers["openai-service-tier"], undefined);
 				console.log(`OPENAI_FAST_MODE_TESTS_PASSED ${state}`);
