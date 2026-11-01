@@ -55,9 +55,10 @@ data flows; this repo does not provision them.
 ## Infrawaves tool images
 
 [infrawaves-tool-images.ts](extensions/infrawaves-tool-images.ts) adapts normal
-conversation requests for **`infrawaves/claude-opus-5.5` using `anthropic-messages`**.
-Controlled recognition tests found that this endpoint could read user images but
-not the same images nested in tool results.
+conversation requests for **`infrawaves/claude-opus-5.5` using `anthropic-messages`**,
+directly or via Magpie (`magpie/infrawaves/claude-opus-5.5`). Controlled recognition
+tests on both routes found that the model could read user images but not the same
+images nested in tool results.
 
 The extension moves tool-result images to the same user message's top-level
 content, after all tool results. It retains tool IDs, text, error flags and image

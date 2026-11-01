@@ -8,13 +8,16 @@ function image(value: unknown): value is Record<string, unknown> {
 	return record(value) && value.type === "image";
 }
 
+// Verified provider/model pairs: direct Infrawaves, and the same Opus via Magpie.
+const TARGETS = new Set(["infrawaves/claude-opus-5.5", "magpie/infrawaves/claude-opus-5.5"]);
+
 // Infrawaves Opus recognizes top-level user images but ignores the same image
 // inside tool_result.content. Adapt only the outgoing Anthropic payload; tools,
 // stored history, other providers/models, and stream/retry handling stay native.
 export default function (pi: ExtensionAPI): void {
 	pi.on("before_provider_request", (event, ctx) => {
-		if (ctx.model?.provider !== "infrawaves" || ctx.model.api !== "anthropic-messages" ||
-			ctx.model.id !== "claude-opus-5.5") return;
+		if (!ctx.model || ctx.model.api !== "anthropic-messages" ||
+			!TARGETS.has(`${ctx.model.provider}/${ctx.model.id}`)) return;
 		const payload = event.payload;
 		if (!record(payload) || payload.model !== ctx.model.id || !Array.isArray(payload.messages)) return;
 

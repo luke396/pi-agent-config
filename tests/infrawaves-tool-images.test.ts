@@ -173,6 +173,24 @@ test("uses the current model on every request and is inert outside the tested pr
 	assert.equal(f.hook({ ...body, model: "different-physical-model" }), undefined);
 });
 
+test("also adapts the same Opus routed through Magpie, matching Magpie's model id", () => {
+	const magpie = { provider: "magpie", api: "anthropic-messages", id: "infrawaves/claude-opus-5.5" };
+	const f = fixture(magpie);
+	const content = [result("read", [text("note"), image("bytes")])];
+	const body = freeze({ model: magpie.id, messages: [{ role: "user", content }] });
+	const blocks = f.send(body).messages[0].content;
+	assert.deepEqual(blocks[0].content, [text("note")]);
+	assert.deepEqual(blocks.at(-1), image("bytes"));
+	for (const model of [
+		{ ...magpie, id: "codex/gpt-6-astra" },
+		{ ...magpie, id: "claude-opus-5.5" },
+		{ ...magpie, api: "openai-responses" },
+	]) {
+		f.select(model);
+		assert.equal(f.hook({ ...body, model: model.id }), undefined);
+	}
+});
+
 test("text-only, top-level images, native error-image placement and unknown shapes pass through", () => {
 	const f = fixture();
 	for (const body of [

@@ -78,7 +78,7 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
 
 - **Infrawaves tool-image compatibility belongs at the outgoing request boundary.**
   `extensions/infrawaves-tool-images.ts` is scoped to `infrawaves/claude-opus-5.5`
-  on `anthropic-messages`. Real recognition tests found that identical images were
+  and `magpie/infrawaves/claude-opus-5.5` on `anthropic-messages`. Real recognition tests found that identical images were
   invisible inside `tool_result.content` but readable as top-level user images.
   Keep native tools/history intact and other models untouched. Preserve tool-result
   ordering, image attribution and the end-of-message cache boundary when lifting
