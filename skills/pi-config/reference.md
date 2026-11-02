@@ -153,6 +153,15 @@ it cost. Mechanism syntax and APIs belong to pi's own docs, not to this file.
   directories**; staged as content they would enter history as mode `120000` —
   a dangling pointer on the next machine. Treat any `skills/` entry nobody here
   wrote as installer-owned.
+- **Feishu skills reach the prompt only through `skills/lark/`.** The ~27
+  installer-owned `lark-*` descriptions cost ~15KB of system prompt on every
+  run, Feishu or not, so `settings.json` excludes `!skills/lark-*` (one rule
+  covers both `~/.agents/skills` and the symlinks here) and the tracked `lark`
+  entry routes by URL path, falling back to grepping their descriptions. This
+  avoids editing remote-owned files that `lark-cli` would overwrite; the cost
+  is one extra read, and `/skill:lark-*` no longer exists. Verified with real
+  `pi -p` runs (wiki link → lark-doc + lark-shared; unrelated prompt → no lark
+  read). Widen the entry's description if a Feishu request stops triggering it.
 - pi creates a 2-byte `auth.json` on startup, so finding one in a fresh clone
   says nothing about whether credentials leaked. Check what is tracked instead.
 - Regenerated files look like config (`themes/omarchy-system.json`) and local
