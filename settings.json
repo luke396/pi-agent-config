@@ -42,5 +42,8 @@
     "npm:@arhen/pi-core-tps-stats",
     "npm:@arhen/pi-core-ask",
     "npm:pi-hermes-memory"
+  ],
+  "skills": [
+    "!skills/lark-*"
   ]
 }
