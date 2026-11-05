@@ -25,8 +25,12 @@ visibility. It replaces the npm folding extension and the former
 - Native tool images appear below the folded row. Click an image, folded or
   expanded, to open it in the desktop image viewer for zooming and panning.
   The click does not change the fold; dragging and scrolling do not open images.
-- `/images` opens a tool image from the active branch, newest first. It also
-  works in regular mode, where the terminal owns mouse input.
+- `/images` previews tool images from the active branch, newest first. Up/down
+  switches the actual picture; Enter opens it at full size and Escape cancels.
+  The preview shows dimensions, time, the surrounding user request and a source
+  filename when available. Identical image bytes share one entry with an
+  occurrence count. It also works in regular mode, where the terminal owns mouse
+  input.
 - Expansion uses the original tool views, with one copy of each image.
 - Regular scrollback, model-visible messages and tool results are unchanged.
 
@@ -60,7 +64,10 @@ continue to own image settings, IDs, conversion and invalidation.
 `ToolImageActions` matches native Kitty/iTerm2 placement lines to the displayed
 image bounds, including expanded viewports, without replacing native components.
 Opening an image reads Pi 1.5's guarded `Image.base64Data` / `mimeType` fields;
-there is no public source getter. `/images` instead uses saved tool-result blocks.
+there is no public source getter. [image-picker.ts](image-picker.ts) uses saved
+tool-result blocks for `/images`, retaining the latest source/context for repeated
+images. Its native `Image` preview is bounded to the terminal size and switches
+without opening external applications until confirmation.
 [image-viewer.ts](image-viewer.ts) writes those original bytes to a private OS
 temporary directory and launches the desktop viewer (`open` on macOS,
 `xdg-open` on Linux). It does not resize the file. Temporary files remain after

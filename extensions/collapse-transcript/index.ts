@@ -3,6 +3,7 @@ import { installTranscriptHistory, mountTranscriptProjection, retainTranscriptHi
 import { ActivityTimings } from "./activity-timing.ts";
 import { ActivityTranscript } from "./activity-transcript.ts";
 import { openImage, type ViewableImage } from "./image-viewer.ts";
+import { collectImages, ImagePicker } from "./image-picker.ts";
 
 export default function transcriptExtension(pi: ExtensionAPI): void {
 	const releasePreparation = retainTranscriptHistory();
@@ -13,19 +14,16 @@ export default function transcriptExtension(pi: ExtensionAPI): void {
 		catch (error) { ctx.ui.notify(`Cannot open image: ${error instanceof Error ? error.message : String(error)}`, "error"); }
 	};
 	pi.registerCommand("images", {
-		description: "Open a tool image in the desktop viewer for zooming",
+		description: "Preview session images and open one at full size",
 		handler: async (_args, ctx) => {
-			if (!ctx.hasUI) return;
-			const images = ctx.sessionManager.getBranch().flatMap(entry => {
-				if (entry.type !== "message" || entry.message.role !== "toolResult") return [];
-				const toolName = entry.message.toolName;
-				return entry.message.content.filter(block => block.type === "image")
-					.map(image => ({ image, toolName }));
-			}).reverse();
+			if (ctx.mode !== "tui") { ctx.ui.notify("/images requires interactive mode.", "info"); return; }
+			const images = collectImages(ctx.sessionManager.getBranch());
 			if (!images.length) { ctx.ui.notify("No tool images in this branch.", "info"); return; }
-			const choices = images.map(({ image, toolName }, index) => `${index + 1}. ${toolName} · ${image.mimeType}`);
-			const selected = images.length === 1 ? choices[0] : await ctx.ui.select("Open image (newest first)", choices);
-			if (selected) await viewImage(images[choices.indexOf(selected)]!.image, ctx);
+			const selected = await ctx.ui.custom<ViewableImage | undefined>((tui, theme, keybindings, done) =>
+				new ImagePicker(images, tui, theme, keybindings, done),
+				{ blocked: { kind: "question", message: "Choose an image to open" } },
+			);
+			if (selected) await viewImage(selected, ctx);
 		},
 	});
 	pi.on("agent_start", () => transcript?.beginTurn());

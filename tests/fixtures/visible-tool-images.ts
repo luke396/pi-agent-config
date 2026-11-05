@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFile, rm } from "node:fs/promises";
 import { dirname, extname } from "node:path";
 import { openImage, type ViewableImage } from "../../extensions/collapse-transcript/image-viewer.ts";
+import { collectImages, ImagePicker } from "../../extensions/collapse-transcript/image-picker.ts";
 import { AssistantMessageComponent, initTheme, SessionManager, ToolExecutionComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Container, ProcessTerminal, Text, TuiAltScreen, TuiMainScreen, getCapabilities, setCapabilities, stripTerminalSequences } from "@earendil-works/pi-tui";
+import { Container, KeybindingsManager, ProcessTerminal, Text, TUI_KEYBINDINGS, TuiAltScreen, TuiMainScreen, getCapabilities, setCapabilities, stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import { ActivityTranscript } from "../../extensions/collapse-transcript/activity-transcript.ts";
 import transcriptExtension from "../../extensions/collapse-transcript/index.ts";
 import { configureTuiAppearance } from "../../npm/node_modules/@luan.sh/pi-libtui/src/index.ts";
@@ -318,14 +319,22 @@ export default function (pi: ExtensionAPI) {
 				assert.match(plain(lifecycle.render()), /private tool details/);
 				hooks.get("session_start")!({}, { ...context, mode: "json", hasUI: false });
 				assert.match(plain(lifecycle.render()), /private tool details/);
-				// The keyboard path reads the active branch, presents newest first and honors cancel/errors.
+				// The keyboard path previews even a single image and honors cancel/errors.
 				const notices: string[] = [];
+				const keys = new KeybindingsManager(TUI_KEYBINDINGS);
 				let cancel = false;
+				let pickerShown = 0;
 				const commandContext = { ...context, ui: { ...context.ui,
 					notify: (message: string) => notices.push(message),
-					select: async (_title: string, choices: string[]) => {
-						assert.match(choices[0], /image\/gif/);
-						return cancel ? undefined : choices[0];
+					custom: async (factory: Function) => {
+						let selected: ViewableImage | undefined;
+						const picker = factory(lifecycle.tui, ctx.ui.theme, keys, (image: ViewableImage | undefined) => { selected = image; });
+						const rows = picker.render(80);
+						assert.equal(imageCount(rows), 1, "picker must display the actual selected image before confirmation");
+						assert.match(plain(rows), /Image 1\//);
+						pickerShown++;
+						picker.handleInput(cancel ? "\x1b" : "\r");
+						return selected;
 					},
 				} };
 				const imagesCommand = commands.get("images");
@@ -334,6 +343,7 @@ export default function (pi: ExtensionAPI) {
 				context.sessionManager.appendMessage({ role: "toolResult", toolCallId: "saved", toolName: "read", content: [png], isError: false, timestamp: 0 });
 				await imagesCommand.handler("", commandContext);
 				assert.deepEqual(commandImages, [png.data]);
+				assert.equal(pickerShown, 1, "one image still gets a visible preview");
 				context.sessionManager.appendMessage({ role: "toolResult", toolCallId: "latest", toolName: "read", content: [{ type: "image", ...originalGif }], isError: false, timestamp: 1 });
 				await imagesCommand.handler("", commandContext);
 				assert.deepEqual(commandImages, [png.data, originalGif.data]);
@@ -344,6 +354,50 @@ export default function (pi: ExtensionAPI) {
 				failOpen = true;
 				await imagesCommand.handler("", commandContext);
 				assert.match(notices.pop()!, /Cannot open image: Viewer unavailable/);
+
+				// Identical outputs merge; each distinct picture retains its newest source and request.
+				const pictures = SessionManager.inMemory("/tmp");
+				const red = { ...png, data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==" };
+				for (const [index, picture] of [png, red, png].entries()) {
+					pictures.appendMessage({ role: "user", content: `/tmp/input.png Plot request ${index + 1}`, timestamp: index * 1000 });
+					pictures.appendMessage({ role: "toolResult", toolName: "codemode", toolCallId: `plot-${index}`, timestamp: index * 1000 + 1, isError: false,
+						content: [{ type: "text", text: `[Image saved to /tmp/plot-${index + 1}.png (image/png, 100B)]` }, picture] });
+				}
+				const choices = collectImages(pictures.getBranch());
+				assert.equal(choices.length, 2);
+				assert.equal(choices[0].occurrences, 2);
+				assert.equal(choices[0].source, "/tmp/plot-3.png");
+				assert.equal(choices[0].context, "Plot request 3");
+				assert.equal(choices[1].image.data, red.data);
+				let terminalRows = 40;
+				Object.defineProperty(lifecycle.tui.terminal, "rows", { get: () => terminalRows });
+				let picked: ViewableImage | undefined;
+				let finished = false;
+				const picker = new ImagePicker(choices, lifecycle.tui, ctx.ui.theme, keys, image => { picked = image; finished = true; });
+				const firstPreview = picker.render(80);
+				assert.match(plain(firstPreview), /Image 1\/2/);
+				assert.match(plain(firstPreview), /1 × 1/);
+				assert.match(plain(firstPreview), /shown 2 times/);
+				assert.match(plain(firstPreview), /plot-3.png/);
+				assert.match(plain(firstPreview), /Request: Plot request 3/);
+				assert.ok(firstPreview.some(line => line.includes(png.data)), "first preview contains the first picture");
+				picker.handleInput("\x1b[B");
+				assert.equal(finished, false, "browsing does not open the desktop viewer");
+				const secondPreview = picker.render(80);
+				assert.match(plain(secondPreview), /Image 2\/2/);
+				assert.match(plain(secondPreview), /plot-2.png/);
+				assert.ok(secondPreview.some(line => line.includes(red.data)), "switching replaces the picture itself");
+				for (const width of [8, 30, 100]) {
+					terminalRows = 18;
+					const rows = picker.render(width);
+					assert.ok(rows.length <= Math.floor(terminalRows * 0.7));
+					assert.ok(rows.every(line => visibleWidth(line) <= width));
+					assert.equal(imageCount(rows), 1);
+				}
+				picker.invalidate();
+				assert.ok(picker.render(80).some(line => line.includes(red.data)));
+				picker.handleInput("\r");
+				assert.equal(picked?.data, red.data);
 
 				// Opening writes exactly the original bytes and invokes the OS without a shell.
 				let openedPath = "";
