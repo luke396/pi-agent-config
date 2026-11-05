@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
+import { readFile, rm } from "node:fs/promises";
+import { dirname, extname } from "node:path";
+import { openImage, type ViewableImage } from "../../extensions/collapse-transcript/image-viewer.ts";
 import { AssistantMessageComponent, initTheme, SessionManager, ToolExecutionComponent, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Container, ProcessTerminal, Text, TuiAltScreen, TuiMainScreen, getCapabilities, setCapabilities, stripTerminalSequences } from "@earendil-works/pi-tui";
 import { ActivityTranscript } from "../../extensions/collapse-transcript/activity-transcript.ts";
 import transcriptExtension from "../../extensions/collapse-transcript/index.ts";
 import { configureTuiAppearance } from "../../npm/node_modules/@luan.sh/pi-libtui/src/index.ts";
 import { mountTranscriptProjection } from "../../npm/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
+import { ensureMouseRegistry } from "../../npm/node_modules/@luan.sh/pi-libtui/src/mouse.ts";
+import { targetsAt } from "../../npm/node_modules/@luan.sh/pi-libtui/src/host/mouse-targets.ts";
 
 const png = { type: "image" as const, mimeType: "image/png", data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aC1sAAAAASUVORK5CYII=" };
 const result = () => ({ content: [{ type: "text" as const, text: "private tool details" }, png], isError: false });
@@ -31,9 +36,10 @@ export default function (pi: ExtensionAPI) {
 					document.addChild(chat);
 					tui.addChild(document);
 					let projection!: ActivityTranscript;
+					const opened: ViewableImage[] = [];
 					const attach = () => {
 						const unmount = mountTranscriptProjection(tui, entries => {
-							projection = new ActivityTranscript(entries, ctx.ui.theme, () => {});
+							projection = new ActivityTranscript(entries, ctx.ui.theme, () => {}, undefined, undefined, tui, image => opened.push(image));
 							return projection;
 						});
 						assert.ok(unmount);
@@ -52,12 +58,30 @@ export default function (pi: ExtensionAPI) {
 					};
 					const render = (width = 80) => document.render(width);
 					const click = () => {
-						const row = render().findIndex(line => stripTerminalSequences(line).includes("Worked"));
+						const row = render().findIndex(line => /Work(?:ed|ing)/.test(stripTerminalSequences(line)));
 						const event = { type: "press" as const, row, col: 2, screenRow: row, screenCol: 2, button: 0 as const, wheel: undefined, shift: false, alt: false, ctrl: false };
 						assert.equal(projection.onMouse(event), true);
 						assert.equal(projection.onMouse({ ...event, type: "release" }), true);
 					};
-					return { tui, chat, get projection() { return projection; }, render, click, tool, attach, unmount };
+					const clickImage = (index = 0, width = 80) => {
+						const lines = render(width);
+						const row = lines.flatMap((line, row) => line.includes("\x1b_G") || line.includes("\x1b]1337;File=") ? [row] : [])[index];
+						assert.notEqual(row, undefined);
+						// Use the real host layout walk, including translated and clipped child geometry.
+						const rect = { x: 4, y: 3, width, height: lines.length };
+						const renderer = { currentLayout: { root: { component: document, rect, clip: rect, children: [] } } };
+						const screenRow = row + rect.y;
+						const screenCol = rect.x + 2;
+						const event = { type: "press" as const, row, col: 2, screenRow, screenCol, button: 0 as const, wheel: undefined, shift: false, alt: false, ctrl: false };
+						const target = targetsAt(ensureMouseRegistry(), renderer, screenCol, screenRow, true, () => false).find(target => {
+							const bounds = target.getRect()!;
+							return target.dispatch({ ...event, row: screenRow - bounds.y, col: screenCol - bounds.x });
+						});
+						assert.ok(target, "native mouse host finds an image action");
+						const bounds = target.getRect()!;
+						assert.equal(target.dispatch({ ...event, type: "release", row: screenRow - bounds.y, col: screenCol - bounds.x }), true);
+					};
+					return { tui, chat, opened, get projection() { return projection; }, render, click, clickImage, tool, attach, unmount };
 				}
 
 				// Baseline regression: the native image is present, but the fold hides it.
@@ -82,6 +106,32 @@ export default function (pi: ExtensionAPI) {
 				f.projection.onMouse({ ...imagePress, type: "release" });
 				assert.doesNotMatch(plain(f.render()), /private tool details/);
 				assert.equal(imageCount(f.render()), 1);
+
+				assert.deepEqual(f.opened, [{ data: png.data, mimeType: png.mimeType }], "click opens the displayed image bytes");
+
+				// Dragging, modified clicks, right clicks and whitespace must not open a viewer.
+				for (const event of [
+					{ ...imagePress, button: 2 as const }, { ...imagePress, shift: true },
+					{ ...imagePress, col: 70 }, { ...imagePress, row: imageRow - 1 },
+				]) {
+					f.projection.onMouse(event);
+					f.projection.onMouse({ ...event, type: "release" });
+				}
+				f.projection.onMouse(imagePress);
+				f.projection.onMouse({ ...imagePress, type: "drag", col: 3 });
+				f.projection.onMouse({ ...imagePress, type: "release" });
+				assert.equal(f.opened.length, 1);
+				assert.equal(f.projection.onMouse({ ...imagePress, type: "wheel", wheel: "down" }), false);
+
+				// Expanded images open too, while leaving tool details expanded.
+				f.click();
+				const expandedRow = f.render().findIndex(line => line.includes("\x1b_G"));
+				const expandedPress = { ...imagePress, row: expandedRow, screenRow: expandedRow };
+				assert.equal(f.projection.onMouse(expandedPress), true);
+				assert.equal(f.projection.onMouse({ ...expandedPress, type: "release" }), true);
+				assert.equal(f.opened.length, 2);
+				assert.match(plain(f.render()), /private tool details/);
+				f.click();
 
 				// Stable section/image views preserve mouse leave across a repaint.
 				const hoverBefore = f.render();
@@ -130,6 +180,23 @@ export default function (pi: ExtensionAPI) {
 				assert.doesNotMatch(plain(f.render()), /private replacement/);
 				tool.updateResult(output);
 
+				// Native host routing works at different widths, in both fold states and protocols.
+				for (const protocol of ["kitty", "iterm2"] as const) {
+					setCapabilities({ ...capabilities, images: protocol });
+					const routed = fixture();
+					const native = routed.tool();
+					native.updateResult(result());
+					for (const width of [8, 80]) {
+						routed.clickImage(0, width);
+						routed.click();
+						routed.clickImage(0, width);
+						routed.click();
+					}
+					assert.equal(routed.opened.length, 4);
+					assert.ok(routed.opened.every(image => image.data === png.data));
+				}
+				setCapabilities({ ...capabilities, images: "kitty" });
+
 				// Prose still separates groups; default-shell read images work too.
 				f.chat.addChild(new Text("Visible answer between tools", 0, 0));
 				const read = f.tool("read");
@@ -172,6 +239,27 @@ export default function (pi: ExtensionAPI) {
 				conversion.click();
 				assert.equal(imageCount(conversion.render()), 1);
 
+				conversion.clickImage();
+				assert.equal(conversion.opened[0].mimeType, "image/gif", "viewer receives original GIF, not terminal PNG conversion");
+				const originalGif = conversion.opened[0];
+				gif.updateResult({ content: [png, { type: "image", ...originalGif }], isError: false }, true);
+				conversion.click();
+				conversion.clickImage(0);
+				conversion.clickImage(1);
+				assert.deepEqual(conversion.opened.slice(1), [{ data: png.data, mimeType: png.mimeType }, originalGif]);
+
+				// A streamed replacement between press and release cannot open the previous image.
+				const stale = fixture();
+				const staleTool = stale.tool();
+				staleTool.updateResult(result());
+				const staleRow = stale.render().findIndex(line => line.includes("\x1b_G"));
+				const stalePress = { ...imagePress, row: staleRow, screenRow: staleRow };
+				stale.projection.onMouse(stalePress);
+				staleTool.updateResult({ content: [{ type: "image", ...originalGif }], isError: false });
+				stale.render();
+				stale.projection.onMouse({ ...stalePress, type: "release" });
+				assert.equal(stale.opened.length, 0);
+
 				// Regression: folded images must not inherit ToolActivity's 520-row clip.
 				const many = fixture();
 				const manyTool = many.tool();
@@ -198,7 +286,18 @@ export default function (pi: ExtensionAPI) {
 				// The fork owns the projection; images need no second installer or late-mount hook.
 				const lifecycle = fixture("fullscreen", false);
 				const hooks = new Map<string, Function>();
-				transcriptExtension({ on: (event: string, handler: Function) => hooks.set(event, handler) } as unknown as ExtensionAPI);
+				const commands = new Map<string, any>();
+				const commandImages: string[] = [];
+				let failOpen = false;
+				transcriptExtension({
+					on: (event: string, handler: Function) => hooks.set(event, handler),
+					registerCommand: (name: string, command: any) => commands.set(name, command),
+					exec: async (_command: string, args: string[]) => {
+						commandImages.push((await readFile(args[0])).toString("base64"));
+						await rm(dirname(args[0]), { recursive: true });
+						return { code: failOpen ? 1 : 0, stdout: "", stderr: failOpen ? "Viewer unavailable" : "", killed: false };
+					},
+				} as unknown as ExtensionAPI);
 				let widget: any;
 				const context = { hasUI: true, mode: "tui", sessionManager: SessionManager.inMemory("/tmp"), ui: {
 					setWidget(_key: string, factory: any) {
@@ -219,6 +318,49 @@ export default function (pi: ExtensionAPI) {
 				assert.match(plain(lifecycle.render()), /private tool details/);
 				hooks.get("session_start")!({}, { ...context, mode: "json", hasUI: false });
 				assert.match(plain(lifecycle.render()), /private tool details/);
+				// The keyboard path reads the active branch, presents newest first and honors cancel/errors.
+				const notices: string[] = [];
+				let cancel = false;
+				const commandContext = { ...context, ui: { ...context.ui,
+					notify: (message: string) => notices.push(message),
+					select: async (_title: string, choices: string[]) => {
+						assert.match(choices[0], /image\/gif/);
+						return cancel ? undefined : choices[0];
+					},
+				} };
+				const imagesCommand = commands.get("images");
+				await imagesCommand.handler("", commandContext);
+				assert.match(notices.pop()!, /No tool images/);
+				context.sessionManager.appendMessage({ role: "toolResult", toolCallId: "saved", toolName: "read", content: [png], isError: false, timestamp: 0 });
+				await imagesCommand.handler("", commandContext);
+				assert.deepEqual(commandImages, [png.data]);
+				context.sessionManager.appendMessage({ role: "toolResult", toolCallId: "latest", toolName: "read", content: [{ type: "image", ...originalGif }], isError: false, timestamp: 1 });
+				await imagesCommand.handler("", commandContext);
+				assert.deepEqual(commandImages, [png.data, originalGif.data]);
+				cancel = true;
+				await imagesCommand.handler("", commandContext);
+				assert.equal(commandImages.length, 2);
+				cancel = false;
+				failOpen = true;
+				await imagesCommand.handler("", commandContext);
+				assert.match(notices.pop()!, /Cannot open image: Viewer unavailable/);
+
+				// Opening writes exactly the original bytes and invokes the OS without a shell.
+				let openedPath = "";
+				await openImage(png, async (command, args) => {
+					assert.equal(command, process.platform === "darwin" ? "open" : process.platform === "win32" ? "explorer.exe" : "xdg-open");
+					assert.equal(args?.length, 1);
+					openedPath = args![0];
+					assert.equal(extname(openedPath), ".png");
+					assert.deepEqual(await readFile(openedPath), Buffer.from(png.data, "base64"));
+					return { code: 0, stdout: "", stderr: "", killed: false };
+				});
+				await rm(dirname(openedPath), { recursive: true });
+				await assert.rejects(openImage(png, async (_command, args) => {
+					openedPath = args![0];
+					return { code: 1, stdout: "", stderr: "No image viewer", killed: false };
+				}), /No image viewer/);
+				await rm(dirname(openedPath), { recursive: true });
 				console.log("VISIBLE_TOOL_IMAGES_TESTS_PASSED");
 			} catch (error) {
 				console.error(error);

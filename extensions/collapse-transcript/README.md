@@ -22,8 +22,11 @@ visibility. It replaces the npm folding extension and the former
   preparation, including while streaming. Surrounding prose, ordinary code and
   nested code examples remain visible; incomplete final fences and native
   error/abort/truncation notices retain their original view.
-- Native tool images appear below the folded row. Clicking an image does not
-  open the fold.
+- Native tool images appear below the folded row. Click an image, folded or
+  expanded, to open it in the desktop image viewer for zooming and panning.
+  The click does not change the fold; dragging and scrolling do not open images.
+- `/images` opens a tool image from the active branch, newest first. It also
+  works in regular mode, where the terminal owns mouse input.
 - Expansion uses the original tool views, with one copy of each image.
 - Regular scrollback, model-visible messages and tool results are unchanged.
 
@@ -53,6 +56,15 @@ and their preceding `Spacer` from the native `Container`; it does not inspect
 private image arrays or walk into tool-detail renderers. Other shapes produce no
 extra preview; the expanded native view remains available. Native instances
 continue to own image settings, IDs, conversion and invalidation.
+
+`ToolImageActions` matches native Kitty/iTerm2 placement lines to the displayed
+image bounds, including expanded viewports, without replacing native components.
+Opening an image reads Pi 1.5's guarded `Image.base64Data` / `mimeType` fields;
+there is no public source getter. `/images` instead uses saved tool-result blocks.
+[image-viewer.ts](image-viewer.ts) writes those original bytes to a private OS
+temporary directory and launches the desktop viewer (`open` on macOS,
+`xdg-open` on Linux). It does not resize the file. Temporary files remain after
+launch because desktop viewers may load them after the launcher exits.
 
 Tagged thinking and workflow source selection are isolated in
 [assistant-sources.ts](assistant-sources.ts).

@@ -1,12 +1,33 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { installTranscriptHistory, mountTranscriptProjection, retainTranscriptHistory } from "../../npm/node_modules/@luan.sh/pi-libtui/src/tool/index.ts";
 import { ActivityTimings } from "./activity-timing.ts";
 import { ActivityTranscript } from "./activity-transcript.ts";
+import { openImage, type ViewableImage } from "./image-viewer.ts";
 
 export default function transcriptExtension(pi: ExtensionAPI): void {
 	const releasePreparation = retainTranscriptHistory();
 	let unmount: (() => void) | undefined;
 	let transcript: ActivityTranscript | undefined;
+	const viewImage = async (image: ViewableImage, ctx: ExtensionContext) => {
+		try { await openImage(image, pi.exec.bind(pi)); }
+		catch (error) { ctx.ui.notify(`Cannot open image: ${error instanceof Error ? error.message : String(error)}`, "error"); }
+	};
+	pi.registerCommand("images", {
+		description: "Open a tool image in the desktop viewer for zooming",
+		handler: async (_args, ctx) => {
+			if (!ctx.hasUI) return;
+			const images = ctx.sessionManager.getBranch().flatMap(entry => {
+				if (entry.type !== "message" || entry.message.role !== "toolResult") return [];
+				const toolName = entry.message.toolName;
+				return entry.message.content.filter(block => block.type === "image")
+					.map(image => ({ image, toolName }));
+			}).reverse();
+			if (!images.length) { ctx.ui.notify("No tool images in this branch.", "info"); return; }
+			const choices = images.map(({ image, toolName }, index) => `${index + 1}. ${toolName} · ${image.mimeType}`);
+			const selected = images.length === 1 ? choices[0] : await ctx.ui.select("Open image (newest first)", choices);
+			if (selected) await viewImage(images[choices.indexOf(selected)]!.image, ctx);
+		},
+	});
 	pi.on("agent_start", () => transcript?.beginTurn());
 	pi.on("agent_settled", () => transcript?.finishTurn());
 	pi.on("message_start", (event, ctx) => {
@@ -52,6 +73,7 @@ export default function transcriptExtension(pi: ExtensionAPI): void {
 					timings,
 					undefined,
 					tui,
+					(image) => { void viewImage(image, ctx); },
 				);
 				return transcript;
 			});

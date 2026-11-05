@@ -11,7 +11,8 @@ import { ToolActivity, type TranscriptEntry } from "../../npm/node_modules/@luan
 import { foldTargetAt } from "../../npm/node_modules/@luan.sh/pi-libtui/src/folding.ts";
 import { ActivityTimings, formatActivityDuration } from "./activity-timing.ts";
 import { CompactionSection } from "./compaction-section.ts";
-import { renderToolImages } from "./native-tool-images.ts";
+import { renderToolImages, ToolImageActions } from "./native-tool-images.ts";
+import type { ViewableImage } from "./image-viewer.ts";
 import { AssistantSources } from "./assistant-sources.ts";
 import { InterruptedThinking } from "./interrupted-thinking.ts";
 
@@ -33,6 +34,7 @@ export function activitySummary(entry: ActivityEntry): string {
 
 class ActivitySection extends ComponentStack {
 	private readonly body = new ComponentStack();
+	private readonly interactiveBody: ToolImageActions;
 	private readonly preview = new Spacer(0);
 	private readonly activity: ToolActivity;
 	private entries: readonly ActivityEntry[] = [];
@@ -45,8 +47,10 @@ class ActivitySection extends ComponentStack {
 		private readonly requestRender: () => void,
 		private readonly timings: ActivityTimings,
 		private readonly now: () => number,
+		openImage: (image: ViewableImage) => void,
 	) {
 		super();
+		this.interactiveBody = new ToolImageActions(this.body, () => this.entries, openImage);
 		this.activity = new ToolActivity({
 			theme,
 			requestRender,
@@ -57,12 +61,16 @@ class ActivitySection extends ComponentStack {
 			new Spacer(1),
 			this.activity,
 			// One stable image sibling per section, outside the clickable fold body.
-			{
-				render: (width) => this.activity.children.some((child) => foldTargetAt(child, 0)?.isFolded())
-					? renderToolImages(this.entries, width) : [],
+			new ToolImageActions({
+				render: (width) => {
+					if (!this.activity.children.some((child) => foldTargetAt(child, 0)?.isFolded())) return [];
+					const lines = renderToolImages(this.entries, width);
+					if (lines.length) lines.push(truncateToWidth(this.theme.fg("dim", "  Click image to open · /images"), width));
+					return lines;
+				},
 				// The original tools own image invalidation, including while folded.
 				invalidate() {},
-			},
+			}, () => this.entries, openImage),
 		]);
 	}
 
@@ -95,7 +103,7 @@ class ActivitySection extends ComponentStack {
 				marker: false,
 			},
 			running,
-			payload: { kind: "component", preview: this.preview, full: this.body },
+			payload: { kind: "component", preview: this.preview, full: this.interactiveBody },
 		});
 	}
 
@@ -145,6 +153,7 @@ export class ActivityTranscript extends ComponentStack {
 		private readonly timings = new ActivityTimings(),
 		private readonly now: () => number = Date.now,
 		private readonly tui?: TUI,
+		private readonly openImage: (image: ViewableImage) => void = () => {},
 	) {
 		super();
 	}
@@ -181,7 +190,7 @@ export class ActivityTranscript extends ComponentStack {
 			const key = pending[0]!.key;
 			let section = this.sections.get(key);
 			if (!section) {
-				section = new ActivitySection(this.theme, this.requestRender, this.timings, this.now);
+				section = new ActivitySection(this.theme, this.requestRender, this.timings, this.now, this.openImage);
 				this.sections.set(key, section);
 			}
 			section.update(pending, active);
