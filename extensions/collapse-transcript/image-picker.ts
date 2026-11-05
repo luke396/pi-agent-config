@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { basename } from "node:path";
 import type { SessionEntry, Theme } from "@earendil-works/pi-coding-agent";
 import { type Component, type KeybindingsManager, type TUI, Image, allocateImageId, getImageDimensions, stripTerminalSequences, truncateToWidth } from "@earendil-works/pi-tui";
@@ -44,7 +43,7 @@ export function collectImages(branch: readonly SessionEntry[]): ImageChoice[] {
 	}
 	const unique = new Map<string, ImageChoice>();
 	for (const choice of images.reverse()) {
-		const key = createHash("sha256").update(choice.image.mimeType).update("\0").update(choice.image.data).digest("hex");
+		const key = `${choice.image.mimeType}\0${choice.image.data}`;
 		const existing = unique.get(key);
 		if (existing) existing.occurrences++;
 		else unique.set(key, choice);
@@ -57,7 +56,6 @@ export class ImagePicker implements Component {
 	readonly capturesViewportInput = true;
 	private selected = 0;
 	private preview: Image | undefined;
-	private previewWidth = 0;
 	private previewHeight = 0;
 	private readonly imageId = allocateImageId();
 
@@ -84,11 +82,10 @@ export class ImagePicker implements Component {
 		if (choice.context) header.push(this.theme.fg("dim", `Request: ${choice.context}`));
 		header.push("");
 		const height = Math.max(1, Math.floor(this.tui.terminal.rows * 0.7) - header.length - 2);
-		if (!this.preview || width !== this.previewWidth || height !== this.previewHeight) {
+		if (!this.preview || height !== this.previewHeight) {
 			this.preview = new Image(choice.image.data, choice.image.mimeType, { fallbackColor: text => this.theme.fg("muted", text) }, {
-				maxWidthCells: Math.max(1, width - 2), maxHeightCells: height, imageId: this.imageId, filename: choice.source,
+				maxWidthCells: Infinity, maxHeightCells: height, imageId: this.imageId, filename: choice.source,
 			});
-			this.previewWidth = width;
 			this.previewHeight = height;
 		}
 		const up = this.keybindings.getKeys("tui.select.up")[0] ?? "";
