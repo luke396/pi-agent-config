@@ -28,6 +28,9 @@ cd "$REPO_DIR"
 
 node "$REPO_DIR/extensions/settings-sync.ts"
 
+# Local Markdown display extension; pinned dependencies travel with the checkout.
+npm ci --prefix "$REPO_DIR/extensions/visible-paths" --ignore-scripts --no-audit --no-fund
+
 # Install the maintenance hooks for this checkout.
 git config core.hooksPath .githooks
 
