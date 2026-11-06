@@ -6,7 +6,7 @@ import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Nodes } from "mdast";
 
 function displayPath(target: string, cwd: string, home: string): string | undefined {
-  if (!target || target.startsWith("#") || target.startsWith("//")) return;
+  if (target.startsWith("#") || target.startsWith("//")) return;
   let path = target;
   if (target.startsWith("file:")) {
     try {
@@ -60,7 +60,7 @@ export function revealPaths(markdown: string, cwd: string, home = homedir()): st
     const suffix = "（" + codeSpan(path) + "）";
     if (!markdown.startsWith(suffix, end)) additions.push({ offset: end, text: suffix });
   });
-  for (const { offset, text } of additions.sort((a, b) => b.offset - a.offset)) {
+  for (const { offset, text } of additions.reverse()) {
     markdown = markdown.slice(0, offset) + text + markdown.slice(offset);
   }
   return markdown;
